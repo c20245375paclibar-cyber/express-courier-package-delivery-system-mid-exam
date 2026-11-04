@@ -43,3 +43,4 @@ use Inertia\Inertia;
         return to_route('parcels.index')->with('success', 'Parcel updated successfully.');
     }
 }
+    
