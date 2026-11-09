@@ -240,8 +240,10 @@ class CourierService
 
         return DB::transaction(function () use ($data) {
             $parcel = Parcel::query()->lockForUpdate()->findOrFail($data['parcel_id']);
-            $lastLog = $parcel->statusLogs()->lockForUpdate()->orderByDesc('sequence')->first();
+            $lastLog = $parcel->statusLogs()->lockForUpdate()->reorder()->orderByDesc('sequence')->first();
             $occurredAt = $this->parseDate($data['occurred_at'] ?? null);
+
+            $this->assertStatusDateIsNotBeforePrevious($occurredAt, $lastLog);
 
             $hub = $this->findOrCreateHub($data['current_hub_name'] ?? null);
             $log = $parcel->statusLogs()->create([
@@ -265,8 +267,11 @@ class CourierService
         return DB::transaction(function () use ($log, $data) {
             $parcel = Parcel::query()->lockForUpdate()->findOrFail($log->parcel_id);
             $log = ShipmentStatusLog::query()->lockForUpdate()->findOrFail($log->id);
+            $previous = $parcel->statusLogs()->where('sequence', '<', $log->sequence)->reorder()->orderByDesc('sequence')->first();
             $next = $parcel->statusLogs()->where('sequence', '>', $log->sequence)->orderBy('sequence')->first();
             $occurredAt = $this->parseDate($data['occurred_at']);
+
+            $this->assertStatusDateWithinBounds($occurredAt, $previous, $next);
 
             $hub = $this->findOrCreateHub($data['current_hub_name'] ?? null);
             $log->update([
@@ -336,6 +341,30 @@ class CourierService
         if (! in_array($status, self::SHIPMENT_STATUSES, true)) {
             throw ValidationException::withMessages([
                 $field => 'Choose a valid shipment status.',
+            ]);
+        }
+    }
+
+    private function assertStatusDateIsNotBeforePrevious(Carbon $occurredAt, ?ShipmentStatusLog $previousLog): void
+    {
+        if ($previousLog !== null && $occurredAt->lt($previousLog->occurred_at)) {
+            throw ValidationException::withMessages([
+                'occurred_at' => 'The status date and time cannot precede the previous shipment event.',
+            ]);
+        }
+    }
+
+    private function assertStatusDateWithinBounds(Carbon $occurredAt, ?ShipmentStatusLog $previousLog, ?ShipmentStatusLog $nextLog): void
+    {
+        if ($previousLog !== null && $occurredAt->lt($previousLog->occurred_at)) {
+            throw ValidationException::withMessages([
+                'occurred_at' => 'The status date and time cannot precede the previous shipment event.',
+            ]);
+        }
+
+        if ($nextLog !== null && $occurredAt->gt($nextLog->occurred_at)) {
+            throw ValidationException::withMessages([
+                'occurred_at' => 'The status date and time cannot follow the next shipment event.',
             ]);
         }
     }
