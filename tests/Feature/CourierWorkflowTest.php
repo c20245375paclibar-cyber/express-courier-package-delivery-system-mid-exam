@@ -54,7 +54,7 @@ class CourierWorkflowTest extends TestCase
             'parcel_id' => $parcel->id,
             'status' => '<b>IN_TRANSIT</b>',
             'current_hub_name' => ' <i>North Hub</i> ',
-            'occurred_at' => '2026-10-27 10:00:00',
+            'occurred_at' => now()->addDay()->setTime(10, 0)->toDateTimeString(),
         ])->assertRedirect(route('shipment-status-logs.index'));
 
         $this->assertSame(2, ShipmentStatusLog::query()->where('parcel_id', $parcel->id)->orderByDesc('sequence')->firstOrFail()->sequence);
@@ -65,7 +65,7 @@ class CourierWorkflowTest extends TestCase
             ->post(route('shipment-status-logs.store'), [
                 'parcel_id' => $parcel->id,
                 'status' => 'delivered',
-                'occurred_at' => '2026-10-26 10:00:00',
+                'occurred_at' => now()->addHour()->toDateTimeString(),
             ])
             ->assertSessionHasErrors('occurred_at');
     }
@@ -110,7 +110,7 @@ class CourierWorkflowTest extends TestCase
         $this->patch(route('shipment-status-logs.update', $log), [
             'status' => 'picked_up',
             'current_hub_name' => 'Airport Hub',
-            'occurred_at' => '2026-10-27 09:30:00',
+            'occurred_at' => now()->addDay()->setTime(9, 30)->toDateTimeString(),
         ])->assertRedirect(route('shipment-status-logs.index'));
 
         $this->assertSame(1, $log->fresh()->sequence);
@@ -161,7 +161,7 @@ class CourierWorkflowTest extends TestCase
         $parcel->statusLogs()->create([
             'sequence' => 1,
             'status' => 'received',
-            'occurred_at' => '2026-10-27 09:00:00',
+            'occurred_at' => now()->startOfDay()->toDateTimeString(),
         ]);
 
         return $parcel;
