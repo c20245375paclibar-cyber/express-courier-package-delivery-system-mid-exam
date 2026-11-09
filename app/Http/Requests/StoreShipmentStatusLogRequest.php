@@ -24,7 +24,7 @@ class StoreShipmentStatusLogRequest extends FormRequest
             'parcel_id' => ['required', 'integer', 'exists:parcels,id'],
             'status' => ['required', Rule::in(CourierService::SHIPMENT_STATUSES)],
             'current_hub_name' => ['nullable', 'string', 'max:120'],
-            'occurred_at' => ['nullable', 'date'],
+            'occurred_at' => ['nullable', 'date', 'after_or_equal:today'],
         ];
     }
 
@@ -33,6 +33,7 @@ class StoreShipmentStatusLogRequest extends FormRequest
         return [
             'parcel_id.exists' => 'Select an existing parcel.',
             'status.in' => 'Choose a valid shipment status.',
+            'occurred_at.after_or_equal' => 'The status date and time cannot be before today.',
         ];
     }
 }

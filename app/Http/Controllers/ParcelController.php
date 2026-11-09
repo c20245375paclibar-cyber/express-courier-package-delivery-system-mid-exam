@@ -26,7 +26,9 @@ use Inertia\Inertia;
 
     public function create(): Response
     {
-        return Inertia::render('parcels/create');
+        return Inertia::render('parcels/create', [
+            'generated_tracking_number' => $this->courierService->generateTrackingNumber(),
+        ]);
     }
 
     public function store(StoreParcelRequest $request): RedirectResponse

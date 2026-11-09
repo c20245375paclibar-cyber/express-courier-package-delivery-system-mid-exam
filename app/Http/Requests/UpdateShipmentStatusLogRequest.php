@@ -23,7 +23,7 @@ class UpdateShipmentStatusLogRequest extends FormRequest
         return [
             'status' => ['required', Rule::in(CourierService::SHIPMENT_STATUSES)],
             'current_hub_name' => ['nullable', 'string', 'max:120'],
-            'occurred_at' => ['required', 'date'],
+            'occurred_at' => ['required', 'date', 'after_or_equal:today'],
         ];
     }
 
@@ -32,6 +32,7 @@ class UpdateShipmentStatusLogRequest extends FormRequest
         return [
             'status.in' => 'Choose a valid shipment status.',
             'occurred_at.required' => 'A date and time is required for this status update.',
+            'occurred_at.after_or_equal' => 'The status date and time cannot be before today.',
         ];
     }
 }

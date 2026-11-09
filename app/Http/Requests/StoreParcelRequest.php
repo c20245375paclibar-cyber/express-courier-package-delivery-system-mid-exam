@@ -30,7 +30,7 @@ class StoreParcelRequest extends FormRequest
             'delivery_type' => ['required', Rule::in(CourierService::DELIVERY_TYPES)],
             'current_hub_name' => ['nullable', 'string', 'max:120'],
             'initial_status' => ['required', Rule::in(CourierService::SHIPMENT_STATUSES)],
-            'status_occurred_at' => ['nullable', 'date'],
+            'status_occurred_at' => ['nullable', 'date', 'after_or_equal:today'],
         ];
     }
 
@@ -41,6 +41,7 @@ class StoreParcelRequest extends FormRequest
             'parcel_weight_kg.gt' => 'Parcel weight must be greater than zero.',
             'delivery_type.in' => 'Choose standard, express, or overnight delivery.',
             'initial_status.in' => 'Choose a valid initial shipment status.',
+            'status_occurred_at.after_or_equal' => 'The status date and time cannot be before today.',
         ];
     }
 }

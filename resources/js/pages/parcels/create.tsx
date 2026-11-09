@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, LoaderCircle } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, MouseEvent } from 'react';
 
 interface ParcelForm {
     [key: string]: string;
@@ -19,6 +19,8 @@ interface ParcelForm {
     current_hub_name: string;
     initial_status: string;
     status_occurred_at: string;
+    status_date: string;
+    status_time: string;
 }
 
 const breadcrumbs = [
@@ -26,9 +28,29 @@ const breadcrumbs = [
     { title: 'Create parcel', href: '/parcels/create' },
 ];
 
-export default function CreateParcel() {
-    const { data, setData, post, processing, errors } = useForm<ParcelForm>({
-        tracking_number: '',
+function localDateValue(date = new Date()) {
+    const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return offsetDate.toISOString().slice(0, 10);
+}
+
+function dateAfter(days: number) {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return offsetDate.toISOString().slice(0, 10);
+}
+
+function openNativePicker(event: MouseEvent<HTMLInputElement>) {
+    try {
+        event.currentTarget.showPicker();
+    } catch {
+        // The browser may not support showPicker; the native input remains usable.
+    }
+}
+
+export default function CreateParcel({ generated_tracking_number }: { generated_tracking_number: string }) {
+    const { data, setData, post, processing, errors, transform } = useForm<ParcelForm>({
+        tracking_number: generated_tracking_number,
         sender_name: '',
         sender_address: '',
         recipient_name: '',
@@ -38,10 +60,18 @@ export default function CreateParcel() {
         current_hub_name: '',
         initial_status: 'received',
         status_occurred_at: '',
+        status_date: '',
+        status_time: '',
     });
 
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
+        transform((formData) => ({
+            ...formData,
+            status_occurred_at: formData.status_date
+                ? `${formData.status_date}T${formData.status_time || '00:00'}`
+                : '',
+        }));
         post(route('parcels.store'));
     };
 
@@ -65,7 +95,13 @@ export default function CreateParcel() {
                     <section className="grid gap-4 sm:grid-cols-2">
                         <div className="grid gap-2 sm:col-span-2">
                             <Label htmlFor="tracking_number">Tracking number</Label>
-                            <Input id="tracking_number" required value={data.tracking_number} onChange={(event) => setData('tracking_number', event.target.value)} placeholder="e.g. CXP-2026-001" />
+                            <Input
+                                id="tracking_number"
+                                required
+                                value={data.tracking_number}
+                                onChange={(event) => setData('tracking_number', event.target.value)}
+                                placeholder="e.g. CXP-2026-001"
+                            />
                             <InputError message={errors.tracking_number} />
                         </div>
                         <div className="grid gap-2">
@@ -124,7 +160,41 @@ export default function CreateParcel() {
                         </div>
                         <div className="grid gap-2 sm:col-span-2">
                             <Label htmlFor="status_occurred_at">Status date and time (optional)</Label>
-                            <Input id="status_occurred_at" type="datetime-local" value={data.status_occurred_at} onChange={(event) => setData('status_occurred_at', event.target.value)} />
+                            <div className="flex flex-wrap gap-2">
+                                <Button type="button" variant="outline" size="sm" onClick={() => setData('status_date', dateAfter(0))}>
+                                    Today
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setData('status_date', dateAfter(1))}>
+                                    Tomorrow
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setData('status_date', dateAfter(7))}>
+                                    Next week
+                                </Button>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="grid gap-1">
+                                    <Label htmlFor="status_date" className="text-xs text-muted-foreground">Date</Label>
+                                    <Input
+                                        id="status_date"
+                                        type="date"
+                                        min={localDateValue()}
+                                        step="1"
+                                        value={data.status_date}
+                                        onChange={(event) => setData('status_date', event.target.value)}
+                                        onClick={openNativePicker}
+                                    />
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label htmlFor="status_time" className="text-xs text-muted-foreground">Time</Label>
+                                    <Input
+                                        id="status_time"
+                                        type="time"
+                                        step="60"
+                                        value={data.status_time}
+                                        onChange={(event) => setData('status_time', event.target.value)}
+                                    />
+                                </div>
+                            </div>
                             <InputError message={errors.status_occurred_at} />
                         </div>
                     </section>

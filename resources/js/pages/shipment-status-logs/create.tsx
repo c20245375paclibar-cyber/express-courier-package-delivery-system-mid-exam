@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, LoaderCircle } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, MouseEvent } from 'react';
 
 interface StatusLogForm {
     [key: string]: string;
@@ -13,6 +13,8 @@ interface StatusLogForm {
     status: string;
     current_hub_name: string;
     occurred_at: string;
+    occurred_date: string;
+    occurred_time: string;
 }
 
 interface ParcelOption {
@@ -20,16 +22,44 @@ interface ParcelOption {
     tracking_number: string;
 }
 
+function localDateValue(date = new Date()) {
+    const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return offsetDate.toISOString().slice(0, 10);
+}
+
+function dateAfter(days: number) {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return offsetDate.toISOString().slice(0, 10);
+}
+
+function openNativePicker(event: MouseEvent<HTMLInputElement>) {
+    try {
+        event.currentTarget.showPicker();
+    } catch {
+        // The browser may not support showPicker; the native input remains usable.
+    }
+}
+
 export default function CreateShipmentStatusLog({ parcels }: { parcels: ParcelOption[] }) {
-    const { data, setData, post, processing, errors } = useForm<StatusLogForm>({
+    const { data, setData, post, processing, errors, transform } = useForm<StatusLogForm>({
         parcel_id: '',
         status: 'in_transit',
         current_hub_name: '',
         occurred_at: '',
+        occurred_date: '',
+        occurred_time: '',
     });
 
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
+        transform((formData) => ({
+            ...formData,
+            occurred_at: formData.occurred_date
+                ? `${formData.occurred_date}T${formData.occurred_time || '00:00'}`
+                : '',
+        }));
         post(route('shipment-status-logs.store'));
     };
 
@@ -72,7 +102,34 @@ export default function CreateShipmentStatusLog({ parcels }: { parcels: ParcelOp
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="occurred_at">Date and time (optional)</Label>
-                        <Input id="occurred_at" type="datetime-local" value={data.occurred_at} onChange={(event) => setData('occurred_at', event.target.value)} />
+                        <div className="flex flex-wrap gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setData('occurred_date', dateAfter(0))}>Today</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setData('occurred_date', dateAfter(1))}>Tomorrow</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setData('occurred_date', dateAfter(7))}>Next week</Button>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="grid gap-1">
+                                <Label htmlFor="occurred_date" className="text-xs text-muted-foreground">Date</Label>
+                                <Input
+                                    id="occurred_date"
+                                    type="date"
+                                    min={localDateValue()}
+                                    value={data.occurred_date}
+                                    onChange={(event) => setData('occurred_date', event.target.value)}
+                                    onClick={openNativePicker}
+                                />
+                            </div>
+                            <div className="grid gap-1">
+                                <Label htmlFor="occurred_time" className="text-xs text-muted-foreground">Time</Label>
+                                <Input
+                                    id="occurred_time"
+                                    type="time"
+                                    step="60"
+                                    value={data.occurred_time}
+                                    onChange={(event) => setData('occurred_time', event.target.value)}
+                                />
+                            </div>
+                        </div>
                         <InputError message={errors.occurred_at} />
                     </div>
                     <div className="flex justify-end gap-3">

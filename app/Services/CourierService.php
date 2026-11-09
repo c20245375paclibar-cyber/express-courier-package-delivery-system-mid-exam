@@ -134,6 +134,29 @@ class CourierService
         return Parcel::query()->findOrFail($id);
     }
 
+    public function generateTrackingNumber(): string
+    {
+        $year = now()->format('Y');
+        $prefix = "CXP-{$year}-";
+
+        $latest = Parcel::query()
+            ->where('tracking_number', 'like', $prefix.'%')
+            ->orderByDesc('tracking_number')
+            ->value('tracking_number');
+
+        $next = 1;
+        if (is_string($latest) && preg_match('/-(\d+)$/', $latest, $matches)) {
+            $next = ((int) $matches[1]) + 1;
+        }
+
+        do {
+            $trackingNumber = $prefix.str_pad((string) $next, 3, '0', STR_PAD_LEFT);
+            $next++;
+        } while (Parcel::query()->where('tracking_number', $trackingNumber)->exists());
+
+        return $trackingNumber;
+    }
+
     public function findStatusLog(int $id): ShipmentStatusLog
     {
         return ShipmentStatusLog::query()->findOrFail($id);
@@ -152,9 +175,10 @@ class CourierService
 
             $weight = round((float) $data['parcel_weight_kg'], 3);
             $cost = $this->calculateShippingCost($weight, $deliveryType);
+            $trackingNumber = $data['tracking_number'] ?: $this->generateTrackingNumber();
 
             $parcel = Parcel::create([
-                'tracking_number' => $data['tracking_number'],
+                'tracking_number' => $trackingNumber,
                 'sender_customer_id' => $sender->id,
                 'recipient_customer_id' => $recipient->id,
                 'current_hub_id' => $hub?->id,
@@ -163,11 +187,13 @@ class CourierService
                 'shipping_cost' => $cost,
             ]);
 
+            $occurredAt = $this->parseDate($data['status_occurred_at'] ?? null);
+
             $parcel->statusLogs()->create([
                 'transit_hub_id' => $hub?->id,
                 'sequence' => 1,
                 'status' => $data['initial_status'],
-                'occurred_at' => $this->parseDate($data['status_occurred_at'] ?? null),
+                'occurred_at' => $occurredAt,
             ]);
 
             $parcel->payments()->create([
@@ -217,12 +243,6 @@ class CourierService
             $lastLog = $parcel->statusLogs()->lockForUpdate()->orderByDesc('sequence')->first();
             $occurredAt = $this->parseDate($data['occurred_at'] ?? null);
 
-            if ($lastLog && $occurredAt->lt($lastLog->occurred_at)) {
-                throw ValidationException::withMessages([
-                    'occurred_at' => 'The status update cannot be earlier than the previous parcel update.',
-                ]);
-            }
-
             $hub = $this->findOrCreateHub($data['current_hub_name'] ?? null);
             $log = $parcel->statusLogs()->create([
                 'transit_hub_id' => $hub?->id,
@@ -245,15 +265,8 @@ class CourierService
         return DB::transaction(function () use ($log, $data) {
             $parcel = Parcel::query()->lockForUpdate()->findOrFail($log->parcel_id);
             $log = ShipmentStatusLog::query()->lockForUpdate()->findOrFail($log->id);
-            $previous = $parcel->statusLogs()->where('sequence', '<', $log->sequence)->orderByDesc('sequence')->first();
             $next = $parcel->statusLogs()->where('sequence', '>', $log->sequence)->orderBy('sequence')->first();
             $occurredAt = $this->parseDate($data['occurred_at']);
-
-            if (($previous && $occurredAt->lt($previous->occurred_at)) || ($next && $occurredAt->gt($next->occurred_at))) {
-                throw ValidationException::withMessages([
-                    'occurred_at' => 'This date and time must remain between the adjacent parcel updates.',
-                ]);
-            }
 
             $hub = $this->findOrCreateHub($data['current_hub_name'] ?? null);
             $log->update([
