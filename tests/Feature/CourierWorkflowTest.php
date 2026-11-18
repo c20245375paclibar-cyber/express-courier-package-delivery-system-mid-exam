@@ -278,6 +278,48 @@ class CourierWorkflowTest extends TestCase
         $this->assertDatabaseMissing('parcels', ['tracking_number' => 'CXP-REPEATED-VALUES']);
     }
 
+    public function test_duplicate_check_uses_sanitized_case_and_whitespace_normalized_values(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->from(route('parcels.create'))
+            ->post(route('parcels.store'), [
+                'tracking_number' => ' cxp-sanitized-duplicates ',
+                'sender_name' => '  Alex   Smith ',
+                'sender_address' => '  1 MAIN   street ',
+                'recipient_name' => '<b>alex smith</b>',
+                'recipient_address' => '1 Main Street',
+                'parcel_weight_kg' => 1,
+                'delivery_type' => 'standard',
+                'current_hub_name' => ' 1 main street ',
+                'initial_status' => 'received',
+            ])
+            ->assertSessionHasErrors(['recipient_name', 'recipient_address', 'current_hub_name']);
+
+        $this->assertDatabaseMissing('parcels', ['tracking_number' => 'CXP-SANITIZED-DUPLICATES']);
+    }
+
+    public function test_parcel_update_rejects_duplicate_contact_values_too(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $parcel = $this->makeParcel(['tracking_number' => 'CXP-UPDATE-DUPLICATE']);
+
+        $this->from(route('parcels.edit', $parcel))
+            ->patch(route('parcels.update', $parcel), [
+                'tracking_number' => 'CXP-UPDATE-DUPLICATE',
+                'sender_name' => 'Taylor Reed',
+                'sender_address' => '1 Oak Avenue',
+                'recipient_name' => '  taylor   reed ',
+                'recipient_address' => '2 Pine Road',
+                'parcel_weight_kg' => 1,
+                'delivery_type' => 'standard',
+                'current_hub_name' => '',
+            ])
+            ->assertSessionHasErrors('recipient_name');
+
+        $this->assertSame('CXP-UPDATE-DUPLICATE', $parcel->fresh()->tracking_number);
+    }
+
     public function test_status_log_rejects_gibberish_optional_hub_name(): void
     {
         $this->actingAs(User::factory()->create());

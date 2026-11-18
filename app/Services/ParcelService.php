@@ -85,9 +85,9 @@ class ParcelService
             if (array_key_exists($field, $data)) {
                 $data[$field] = $this->cleanAddress($data[$field]);
             }
-            if (array_key_exists('current_hub_name', $data) && $data['current_hub_name'] === '') {
-                $data['current_hub_name'] = null;
-            }
+        }
+        if (array_key_exists('current_hub_name', $data) && $data['current_hub_name'] === '') {
+            $data['current_hub_name'] = null;
         }
 
         if (array_key_exists('tracking_number', $data)) {
