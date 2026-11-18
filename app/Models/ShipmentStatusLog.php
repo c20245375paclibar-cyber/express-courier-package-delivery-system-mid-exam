@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ShipmentStatusLog extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = ['parcel_id', 'transit_hub_id', 'sequence', 'status', 'occurred_at'];
 
     protected function casts(): array
@@ -19,11 +22,11 @@ class ShipmentStatusLog extends Model
 
     public function parcel(): BelongsTo
     {
-        return $this->belongsTo(Parcel::class);
+        return $this->belongsTo(Parcel::class)->withTrashed();
     }
 
     public function transitHub(): BelongsTo
     {
-        return $this->belongsTo(TransitHub::class);
+        return $this->belongsTo(TransitHub::class)->withTrashed();
     }
 }

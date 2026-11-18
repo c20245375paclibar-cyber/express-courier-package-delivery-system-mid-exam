@@ -51,9 +51,13 @@ class ShipmentStatusLogService
         return $search === '' ? null : $search;
     }
 
-    public function paginate(?string $search = null): LengthAwarePaginator
+    public function paginate(?string $search = null, bool $archived = false): LengthAwarePaginator
     {
-        $query = ShipmentStatusLog::query()->with(['parcel', 'transitHub'])->latest('occurred_at');
+        $query = ShipmentStatusLog::query()
+            ->when($archived, fn ($query) => $query->onlyTrashed())
+            ->whereHas('parcel')
+            ->with(['parcel', 'transitHub'])
+            ->latest('occurred_at');
 
         if ($search !== null) {
             $query->where(function ($query) use ($search) {
@@ -86,7 +90,7 @@ class ShipmentStatusLogService
 
         return DB::transaction(function () use ($data) {
             $parcel = Parcel::query()->lockForUpdate()->findOrFail($data['parcel_id']);
-            $lastLog = $parcel->statusLogs()->lockForUpdate()->reorder()->orderByDesc('sequence')->first();
+            $lastLog = $parcel->statusLogs()->withTrashed()->lockForUpdate()->reorder()->orderByDesc('sequence')->first();
             $occurredAt = $this->parseDate($data['occurred_at'] ?? null);
             $this->assertNotBeforePrevious($occurredAt, $lastLog);
             $hub = $this->transitHubService->findOrCreate($data['current_hub_name'] ?? null);
@@ -130,15 +134,26 @@ class ShipmentStatusLogService
         });
     }
 
-    public function delete(ShipmentStatusLog $log): void
+    public function archive(ShipmentStatusLog $log): void
     {
         DB::transaction(function () use ($log) {
-            $parcel = Parcel::query()->lockForUpdate()->findOrFail($log->parcel_id);
-            $sequence = $log->sequence;
+            $parcel = Parcel::query()->withTrashed()->lockForUpdate()->findOrFail($log->parcel_id);
             $log->delete();
-            $parcel->statusLogs()->where('sequence', '>', $sequence)->decrement('sequence');
             $latest = $parcel->statusLogs()->orderByDesc('sequence')->first();
             $parcel->update(['current_hub_id' => $latest?->transit_hub_id]);
+        });
+    }
+
+    public function restore(int $id): void
+    {
+        DB::transaction(function () use ($id): void {
+            $log = ShipmentStatusLog::query()->withTrashed()->lockForUpdate()->findOrFail($id);
+            $parcel = Parcel::query()->withTrashed()->lockForUpdate()->findOrFail($log->parcel_id);
+            $log->restore();
+
+            if (! $parcel->statusLogs()->where('sequence', '>', $log->sequence)->exists()) {
+                $parcel->update(['current_hub_id' => $log->transit_hub_id]);
+            }
         });
     }
 

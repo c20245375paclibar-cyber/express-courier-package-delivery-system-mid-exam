@@ -18,7 +18,8 @@ class CustomerController extends Controller
     public function index(Request $request): Response|JsonResponse
     {
         $search = $this->customerService->normalizeSearch($request->query('search'));
-        $customers = $this->customerService->paginate($search);
+        $archived = $request->boolean('archived');
+        $customers = $this->customerService->paginate($search, $archived);
 
         if ($request->expectsJson()) {
             return response()->json($customers);
@@ -27,6 +28,7 @@ class CustomerController extends Controller
         return Inertia::render('customers/index', [
             'customers' => $customers,
             'search' => $search ?? '',
+            'archived' => $archived,
         ]);
     }
 
@@ -69,12 +71,19 @@ class CustomerController extends Controller
 
     public function destroy(Request $request, int $customer): RedirectResponse|JsonResponse
     {
-        $this->customerService->delete($this->customerService->find($customer));
+        $this->customerService->archive($this->customerService->find($customer));
 
         if ($request->expectsJson()) {
             return response()->json(status: 204);
         }
 
-        return to_route('customers.index')->with('success', 'Customer deleted successfully.');
+        return to_route('customers.index')->with('success', 'Customer archived successfully.');
+    }
+
+    public function restore(int $customer): RedirectResponse
+    {
+        $this->customerService->restore($customer);
+
+        return to_route('customers.index')->with('success', 'Customer restored successfully.');
     }
 }

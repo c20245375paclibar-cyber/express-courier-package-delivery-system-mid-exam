@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Customer;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Validation\ValidationException;
 
 class CustomerService
 {
@@ -41,9 +40,10 @@ class CustomerService
         return $this->normalizeQuery($search);
     }
 
-    public function paginate(?string $search = null): LengthAwarePaginator
+    public function paginate(?string $search = null, bool $archived = false): LengthAwarePaginator
     {
         return Customer::query()
+            ->when($archived, fn ($query) => $query->onlyTrashed())
             ->when($search, fn ($query) => $query->where(fn ($query) => $query
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('address', 'like', "%{$search}%")))
@@ -72,23 +72,30 @@ class CustomerService
         return $customer->refresh();
     }
 
-    public function delete(Customer $customer): void
+    public function archive(Customer $customer): void
     {
-        if ($customer->sentParcels()->exists() || $customer->receivedParcels()->exists()) {
-            throw ValidationException::withMessages([
-                'customer' => 'Customers linked to parcels cannot be deleted.',
-            ]);
-        }
-
         $customer->delete();
+    }
+
+    public function restore(int $id): void
+    {
+        Customer::query()->withTrashed()->findOrFail($id)->restore();
     }
 
     public function findOrCreate(string $name, string $address): Customer
     {
-        return Customer::query()->firstOrCreate($this->sanitizeInput([
+        $customer = Customer::withTrashed()->firstOrNew($this->sanitizeInput([
             'name' => $name,
             'address' => $address,
         ]));
+
+        if ($customer->exists && $customer->trashed()) {
+            $customer->restore();
+        } elseif (! $customer->exists) {
+            $customer->save();
+        }
+
+        return $customer;
     }
 
     private function normalizeQuery(mixed $search): ?string

@@ -6,7 +6,7 @@ interface DispatchRequest {
     queued_at: string;
     processed_at: string | null;
     failure_reason: string | null;
-    parcel: { tracking_number: string };
+    parcel: { tracking_number: string } | null;
     assigned_hub: { name: string } | null;
 }
 
@@ -22,13 +22,21 @@ function label(value: string) {
     return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-export default function DispatchRequestsIndex({ dispatchRequests, search }: { dispatchRequests: Paginator<DispatchRequest>; search: string }) {
+export default function DispatchRequestsIndex({
+    dispatchRequests,
+    search,
+    archived,
+}: {
+    dispatchRequests: Paginator<DispatchRequest>;
+    search: string;
+    archived: boolean;
+}) {
     const rows: Paginator<ResourceRow> = {
         ...dispatchRequests,
         data: dispatchRequests.data.map((request) => ({
             id: request.id,
             values: [
-                request.parcel.tracking_number,
+                request.parcel?.tracking_number ?? 'Unknown parcel',
                 label(request.status),
                 request.assigned_hub?.name ?? 'Awaiting assignment',
                 new Date(request.queued_at).toLocaleString(),
@@ -40,15 +48,21 @@ export default function DispatchRequestsIndex({ dispatchRequests, search }: { di
     return (
         <CourierResourceIndex
             title="Dispatch queue"
-            description="Queue parcel dispatches and distribute assignments across transit hubs in round-robin order."
+            description={
+                archived
+                    ? 'Archived dispatch requests. Restore a request to return it to the active queue.'
+                    : 'Queue parcel dispatches and distribute assignments across transit hubs in round-robin order.'
+            }
             resource="Dispatch requests"
             indexUrl={route('dispatch-requests.index')}
             createUrl={route('dispatch-requests.create')}
             editUrl={(id) => route('dispatch-requests.edit', id)}
             deleteUrl={(id) => route('dispatch-requests.destroy', id)}
+            restoreUrl={(id) => route('dispatch-requests.restore', id)}
             columns={['Tracking number', 'Status', 'Assigned hub', 'Queued at', 'Failure']}
             rows={rows}
             search={search}
+            archived={archived}
         />
     );
 }

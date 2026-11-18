@@ -34,9 +34,10 @@ class TransitHubService
         return $search === '' ? null : $search;
     }
 
-    public function paginate(?string $search = null): LengthAwarePaginator
+    public function paginate(?string $search = null, bool $archived = false): LengthAwarePaginator
     {
         return TransitHub::query()
+            ->when($archived, fn ($query) => $query->onlyTrashed())
             ->when($search, fn ($query) => $query->where('name', 'like', "%{$search}%"))
             ->withCount(['parcels', 'statusLogs'])
             ->orderBy('name')
@@ -63,16 +64,32 @@ class TransitHubService
         return $hub->refresh();
     }
 
-    public function delete(TransitHub $hub): void
+    public function archive(TransitHub $hub): void
     {
         $hub->delete();
+    }
+
+    public function restore(int $id): void
+    {
+        TransitHub::query()->withTrashed()->findOrFail($id)->restore();
     }
 
     public function findOrCreate(?string $name): ?TransitHub
     {
         $name = $name === null ? '' : $this->cleanText($name);
 
-        return $name === '' ? null : TransitHub::query()->firstOrCreate(['name' => $name]);
+        if ($name === '') {
+            return null;
+        }
+
+        $hub = TransitHub::withTrashed()->firstOrNew(['name' => $name]);
+        if ($hub->exists && $hub->trashed()) {
+            $hub->restore();
+        } elseif (! $hub->exists) {
+            $hub->save();
+        }
+
+        return $hub;
     }
 
     private function cleanText(mixed $value): string

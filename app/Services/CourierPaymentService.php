@@ -47,9 +47,10 @@ class CourierPaymentService
         return $search === '' ? null : $search;
     }
 
-    public function paginate(?string $search = null): LengthAwarePaginator
+    public function paginate(?string $search = null, bool $archived = false): LengthAwarePaginator
     {
         return CourierPayment::query()
+            ->when($archived, fn ($query) => $query->onlyTrashed())
             ->with('parcel:id,tracking_number')
             ->when($search, fn ($query) => $query->where(fn ($query) => $query
                 ->where('payment_status', 'like', "%{$search}%")
@@ -97,9 +98,14 @@ class CourierPaymentService
         return $payment->refresh();
     }
 
-    public function delete(CourierPayment $payment): void
+    public function archive(CourierPayment $payment): void
     {
         $payment->delete();
+    }
+
+    public function restore(int $id): void
+    {
+        CourierPayment::query()->withTrashed()->findOrFail($id)->restore();
     }
 
     private function cleanText(string $value): string

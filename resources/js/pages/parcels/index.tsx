@@ -1,10 +1,10 @@
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
+import { Archive, ArchiveRestore, PackagePlus, Plus, Search, Truck } from 'lucide-react';
 import { FormEvent, useState } from 'react';
-import { PackagePlus, Plus, Search, Truck } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 
 interface Parcel {
     id: number;
@@ -32,13 +32,21 @@ function statusLabel(status?: string): string {
     return status ? status.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) : 'No status';
 }
 
-export default function ParcelsIndex({ parcels, search: initialSearch }: { parcels: Paginator<Parcel>; search: string }) {
+export default function ParcelsIndex({
+    parcels,
+    search: initialSearch,
+    archived,
+}: {
+    parcels: Paginator<Parcel>;
+    search: string;
+    archived: boolean;
+}) {
     const [search, setSearch] = useState(initialSearch);
     const pageTotal = parcels.data.reduce((total, parcel) => total + Number(parcel.shipping_cost), 0);
 
     const submitSearch = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        router.get(route('parcels.index'), { search }, { preserveState: true, replace: true });
+        router.get(route('parcels.index'), { search, archived: archived ? 1 : undefined }, { preserveState: true, replace: true });
     };
 
     return (
@@ -48,18 +56,40 @@ export default function ParcelsIndex({ parcels, search: initialSearch }: { parce
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                     <div>
                         <div className="flex items-center gap-2">
-                            <Truck className="size-6 text-primary" />
+                            <Truck className="text-primary size-6" />
                             <h1 className="text-2xl font-semibold tracking-tight">Parcel shipments</h1>
                         </div>
-                        <p className="mt-1 text-sm text-muted-foreground">Track packages, delivery progress, and shipping charges.</p>
+                        <p className="text-muted-foreground mt-1 text-sm">
+                            {archived
+                                ? 'Archived parcels. Restore a parcel to return it to active tracking.'
+                                : 'Track packages, delivery progress, and shipping charges.'}
+                        </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href={route('shipment-status-logs.index')}>Status history</Link>
+                        <Button
+                            variant="outline"
+                            onClick={() =>
+                                router.get(
+                                    route('parcels.index'),
+                                    { search: search || undefined, archived: archived ? undefined : 1 },
+                                    { preserveState: true, replace: true },
+                                )
+                            }
+                        >
+                            {archived ? 'View active' : 'View archive'}
                         </Button>
-                        <Button asChild>
-                            <Link href={route('parcels.create')}><Plus /> Create parcel</Link>
-                        </Button>
+                        {!archived && (
+                            <>
+                                <Button variant="outline" asChild>
+                                    <Link href={route('shipment-status-logs.index')}>Status history</Link>
+                                </Button>
+                                <Button asChild>
+                                    <Link href={route('parcels.create')}>
+                                        <Plus /> Create parcel
+                                    </Link>
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -70,14 +100,24 @@ export default function ParcelsIndex({ parcels, search: initialSearch }: { parce
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                     />
-                    <Button type="submit" variant="secondary"><Search /> Search</Button>
-                    {initialSearch && <Button type="button" variant="outline" onClick={() => {
-                        setSearch('');
-                        router.get(route('parcels.index'), {}, { preserveState: true, replace: true });
-                    }}>Clear</Button>}
+                    <Button type="submit" variant="secondary">
+                        <Search /> Search
+                    </Button>
+                    {initialSearch && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                setSearch('');
+                                router.get(route('parcels.index'), { archived: archived ? 1 : undefined }, { preserveState: true, replace: true });
+                            }}
+                        >
+                            Clear
+                        </Button>
+                    )}
                 </form>
 
-                <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                <div className="bg-card overflow-hidden rounded-xl border shadow-sm">
                     <Table>
                         <TableCaption>Recent parcels and their latest tracking status.</TableCaption>
                         <TableHeader>
@@ -93,32 +133,66 @@ export default function ParcelsIndex({ parcels, search: initialSearch }: { parce
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {parcels.data.length ? parcels.data.map((parcel) => (
-                                <TableRow key={parcel.id}>
-                                    <TableCell className="font-medium">{parcel.tracking_number}</TableCell>
-                                    <TableCell>{parcel.sender.name} <span className="text-muted-foreground">→</span> {parcel.recipient.name}</TableCell>
-                                    <TableCell><span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">{statusLabel(parcel.status_logs.at(-1)?.status)}</span></TableCell>
-                                    <TableCell>{parcel.current_hub?.name ?? '—'}</TableCell>
-                                    <TableCell className="capitalize">{parcel.delivery_type}</TableCell>
-                                    <TableCell className="text-right">{Number(parcel.parcel_weight_kg).toFixed(3)} kg</TableCell>
-                                    <TableCell className="text-right">${Number(parcel.shipping_cost).toFixed(2)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button variant="outline" size="sm" asChild><Link href={route('parcels.edit', parcel.id)}>Edit</Link></Button>
-                                            <Button variant="destructive" size="sm" onClick={() => {
-                                                if (window.confirm('Delete this parcel and its status/payment records?')) {
-                                                    router.delete(route('parcels.destroy', parcel.id));
-                                                }
-                                            }}>Delete</Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            )) : (
+                            {parcels.data.length ? (
+                                parcels.data.map((parcel) => (
+                                    <TableRow key={parcel.id}>
+                                        <TableCell className="font-medium">{parcel.tracking_number}</TableCell>
+                                        <TableCell>
+                                            {parcel.sender.name} <span className="text-muted-foreground">→</span> {parcel.recipient.name}
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="bg-secondary rounded-full px-2.5 py-1 text-xs font-medium">
+                                                {statusLabel(parcel.status_logs.at(-1)?.status)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>{parcel.current_hub?.name ?? '—'}</TableCell>
+                                        <TableCell className="capitalize">{parcel.delivery_type}</TableCell>
+                                        <TableCell className="text-right">{Number(parcel.parcel_weight_kg).toFixed(3)} kg</TableCell>
+                                        <TableCell className="text-right">${Number(parcel.shipping_cost).toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-2">
+                                                {archived ? (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => router.post(route('parcels.restore', parcel.id), {}, { preserveScroll: true })}
+                                                    >
+                                                        <ArchiveRestore /> Restore
+                                                    </Button>
+                                                ) : (
+                                                    <>
+                                                        <Button variant="outline" size="sm" asChild>
+                                                            <Link href={route('parcels.edit', parcel.id)}>Edit</Link>
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                if (
+                                                                    window.confirm(
+                                                                        'Archive this parcel? Its status logs and payments will be kept, and you can restore it later.',
+                                                                    )
+                                                                ) {
+                                                                    router.delete(route('parcels.destroy', parcel.id));
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Archive /> Archive
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
                                 <TableRow>
                                     <TableCell colSpan={8} className="h-40 text-center">
-                                        <PackagePlus className="mx-auto mb-2 size-8 text-muted-foreground" />
+                                        <PackagePlus className="text-muted-foreground mx-auto mb-2 size-8" />
                                         <p className="font-medium">No parcels yet</p>
-                                        <p className="mt-1 text-sm text-muted-foreground">Create your first parcel to start tracking deliveries.</p>
+                                        <p className="text-muted-foreground mt-1 text-sm">
+                                            {archived ? 'No archived parcels found.' : 'Create your first parcel to start tracking deliveries.'}
+                                        </p>
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -131,10 +205,24 @@ export default function ParcelsIndex({ parcels, search: initialSearch }: { parce
                         </TableFooter>
                     </Table>
                 </div>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    {parcels.prev_page_url ? <Button variant="outline" size="sm" asChild><Link href={parcels.prev_page_url}>Previous</Link></Button> : <span />}
-                    <span>Page {parcels.current_page} of {parcels.last_page}</span>
-                    {parcels.next_page_url ? <Button variant="outline" size="sm" asChild><Link href={parcels.next_page_url}>Next</Link></Button> : <span />}
+                <div className="text-muted-foreground flex items-center justify-between text-sm">
+                    {parcels.prev_page_url ? (
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href={parcels.prev_page_url}>Previous</Link>
+                        </Button>
+                    ) : (
+                        <span />
+                    )}
+                    <span>
+                        Page {parcels.current_page} of {parcels.last_page}
+                    </span>
+                    {parcels.next_page_url ? (
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href={parcels.next_page_url}>Next</Link>
+                        </Button>
+                    ) : (
+                        <span />
+                    )}
                 </div>
             </main>
         </AppLayout>

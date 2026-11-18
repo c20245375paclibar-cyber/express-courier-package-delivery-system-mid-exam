@@ -15,7 +15,7 @@ interface Paginator<T> {
     next_page_url: string | null;
 }
 
-export default function TransitHubsIndex({ hubs, search }: { hubs: Paginator<Hub>; search: string }) {
+export default function TransitHubsIndex({ hubs, search, archived }: { hubs: Paginator<Hub>; search: string; archived: boolean }) {
     const rows: Paginator<ResourceRow> = {
         ...hubs,
         data: hubs.data.map((hub) => ({
@@ -27,15 +27,21 @@ export default function TransitHubsIndex({ hubs, search }: { hubs: Paginator<Hub
     return (
         <CourierResourceIndex
             title="Transit hubs"
-            description="Maintain hubs used for parcel locations and tracking events."
+            description={
+                archived
+                    ? 'Archived transit hubs. Restore a hub to assign it to parcels again.'
+                    : 'Maintain hubs used for parcel locations and tracking events.'
+            }
             resource="Transit hubs"
             indexUrl={route('transit-hubs.index')}
             createUrl={route('transit-hubs.create')}
             editUrl={(id) => route('transit-hubs.edit', id)}
             deleteUrl={(id) => route('transit-hubs.destroy', id)}
+            restoreUrl={(id) => route('transit-hubs.restore', id)}
             columns={['Hub name', 'Current parcels', 'Status events']}
             rows={rows}
             search={search}
+            archived={archived}
         />
     );
 }

@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CourierPayment extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = ['parcel_id', 'amount', 'payment_status', 'payment_method', 'paid_at'];
 
     protected function casts(): array
@@ -19,6 +22,6 @@ class CourierPayment extends Model
 
     public function parcel(): BelongsTo
     {
-        return $this->belongsTo(Parcel::class);
+        return $this->belongsTo(Parcel::class)->withTrashed();
     }
 }

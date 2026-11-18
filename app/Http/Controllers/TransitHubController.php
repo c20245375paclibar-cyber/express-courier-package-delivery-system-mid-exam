@@ -18,7 +18,8 @@ class TransitHubController extends Controller
     public function index(Request $request): Response|JsonResponse
     {
         $search = $this->transitHubService->normalizeSearch($request->query('search'));
-        $hubs = $this->transitHubService->paginate($search);
+        $archived = $request->boolean('archived');
+        $hubs = $this->transitHubService->paginate($search, $archived);
 
         if ($request->expectsJson()) {
             return response()->json($hubs);
@@ -27,6 +28,7 @@ class TransitHubController extends Controller
         return Inertia::render('transit-hubs/index', [
             'hubs' => $hubs,
             'search' => $search ?? '',
+            'archived' => $archived,
         ]);
     }
 
@@ -69,12 +71,19 @@ class TransitHubController extends Controller
 
     public function destroy(Request $request, int $transitHub): RedirectResponse|JsonResponse
     {
-        $this->transitHubService->delete($this->transitHubService->find($transitHub));
+        $this->transitHubService->archive($this->transitHubService->find($transitHub));
 
         if ($request->expectsJson()) {
             return response()->json(status: 204);
         }
 
-        return to_route('transit-hubs.index')->with('success', 'Transit hub deleted successfully.');
+        return to_route('transit-hubs.index')->with('success', 'Transit hub archived successfully.');
+    }
+
+    public function restore(int $transitHub): RedirectResponse
+    {
+        $this->transitHubService->restore($transitHub);
+
+        return to_route('transit-hubs.index')->with('success', 'Transit hub restored successfully.');
     }
 }

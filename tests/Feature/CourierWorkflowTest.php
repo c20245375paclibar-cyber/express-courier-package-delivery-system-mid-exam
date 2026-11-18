@@ -71,6 +71,32 @@ class CourierWorkflowTest extends TestCase
             ->assertSessionHasErrors('occurred_at');
     }
 
+    public function test_new_status_log_uses_a_sequence_after_archived_logs(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $parcel = $this->makeParcel();
+        $firstLog = $parcel->statusLogs()->firstOrFail();
+
+        $this->delete(route('shipment-status-logs.destroy', $firstLog))
+            ->assertRedirect(route('shipment-status-logs.index'));
+
+        $this->post(route('shipment-status-logs.store'), [
+            'parcel_id' => $parcel->id,
+            'status' => 'picked_up',
+            'occurred_at' => now()->addDay()->toDateTimeString(),
+        ])->assertRedirect(route('shipment-status-logs.index'));
+
+        $this->assertDatabaseHas('shipment_status_logs', [
+            'id' => $firstLog->id,
+            'sequence' => 1,
+        ]);
+        $this->assertSame(2, $parcel->statusLogs()->firstOrFail()->sequence);
+
+        $this->post(route('shipment-status-logs.restore', $firstLog->id))
+            ->assertRedirect(route('shipment-status-logs.index'));
+        $this->assertSame([1, 2], $parcel->statusLogs()->orderBy('sequence')->pluck('sequence')->all());
+    }
+
     public function test_parcel_update_recalculates_shipping_and_updates_pending_payment(): void
     {
         $this->actingAs(User::factory()->create());
@@ -128,7 +154,7 @@ class CourierWorkflowTest extends TestCase
             ->assertJsonPath('paid_at', null);
 
         $this->deleteJson(route('courier-payments.destroy', $payment))->assertNoContent();
-        $this->assertDatabaseMissing('courier_payments', ['id' => $payment->id]);
+        $this->assertSoftDeleted('courier_payments', ['id' => $payment->id]);
     }
 
     public function test_courier_payment_creation_rejects_invalid_parcels_and_statuses(): void

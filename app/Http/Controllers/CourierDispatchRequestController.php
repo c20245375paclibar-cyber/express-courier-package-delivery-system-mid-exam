@@ -17,10 +17,12 @@ class CourierDispatchRequestController extends Controller
     public function index(Request $request): Response
     {
         $search = $this->dispatchService->normalizeSearch($request->query('search'));
+        $archived = $request->boolean('archived');
 
         return Inertia::render('dispatch-requests/index', [
-            'dispatchRequests' => $this->dispatchService->paginate($search),
+            'dispatchRequests' => $this->dispatchService->paginate($search, $archived),
             'search' => $search ?? '',
+            'archived' => $archived,
         ]);
     }
 
@@ -53,8 +55,15 @@ class CourierDispatchRequestController extends Controller
 
     public function destroy(int $dispatchRequest): RedirectResponse
     {
-        $this->dispatchService->delete($this->dispatchService->find($dispatchRequest));
+        $this->dispatchService->archive($this->dispatchService->find($dispatchRequest));
 
-        return to_route('dispatch-requests.index')->with('success', 'Dispatch request deleted successfully.');
+        return to_route('dispatch-requests.index')->with('success', 'Dispatch request archived successfully.');
+    }
+
+    public function restore(int $dispatchRequest): RedirectResponse
+    {
+        $this->dispatchService->restore($dispatchRequest);
+
+        return to_route('dispatch-requests.index')->with('success', 'Dispatch request restored successfully.');
     }
 }

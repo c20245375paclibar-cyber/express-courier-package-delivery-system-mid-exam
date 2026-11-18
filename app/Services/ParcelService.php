@@ -117,9 +117,10 @@ class ParcelService
         return $search === '' ? null : $search;
     }
 
-    public function paginate(?string $search = null): LengthAwarePaginator
+    public function paginate(?string $search = null, bool $archived = false): LengthAwarePaginator
     {
-        $query = Parcel::query()->with(['sender', 'recipient', 'currentHub', 'statusLogs'])->latest();
+        $query = Parcel::query()->when($archived, fn ($query) => $query->onlyTrashed())
+            ->with(['sender', 'recipient', 'currentHub', 'statusLogs'])->latest();
 
         if ($search !== null) {
             $query->where(function ($query) use ($search) {
@@ -144,12 +145,12 @@ class ParcelService
     public function generateTrackingNumber(): string
     {
         $prefix = 'CXP-'.now()->format('Y').'-';
-        $latest = Parcel::query()->where('tracking_number', 'like', $prefix.'%')->orderByDesc('tracking_number')->value('tracking_number');
+        $latest = Parcel::withTrashed()->where('tracking_number', 'like', $prefix.'%')->orderByDesc('tracking_number')->value('tracking_number');
         $next = is_string($latest) && preg_match('/-(\d+)$/', $latest, $matches) ? ((int) $matches[1]) + 1 : 1;
 
         do {
             $trackingNumber = $prefix.str_pad((string) $next++, 3, '0', STR_PAD_LEFT);
-        } while (Parcel::query()->where('tracking_number', $trackingNumber)->exists());
+        } while (Parcel::withTrashed()->where('tracking_number', $trackingNumber)->exists());
 
         return $trackingNumber;
     }
@@ -215,9 +216,14 @@ class ParcelService
         });
     }
 
-    public function delete(Parcel $parcel): void
+    public function archive(Parcel $parcel): void
     {
         $parcel->delete();
+    }
+
+    public function restore(int $id): void
+    {
+        Parcel::query()->withTrashed()->findOrFail($id)->restore();
     }
 
     private function calculateShippingCost(float $weight, string $deliveryType): float

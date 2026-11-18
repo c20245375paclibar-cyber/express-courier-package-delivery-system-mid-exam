@@ -18,7 +18,8 @@ class CourierPaymentController extends Controller
     public function index(Request $request): Response|JsonResponse
     {
         $search = $this->paymentService->normalizeSearch($request->query('search'));
-        $payments = $this->paymentService->paginate($search);
+        $archived = $request->boolean('archived');
+        $payments = $this->paymentService->paginate($search, $archived);
 
         if ($request->expectsJson()) {
             return response()->json($payments);
@@ -27,6 +28,7 @@ class CourierPaymentController extends Controller
         return Inertia::render('courier-payments/index', [
             'payments' => $payments,
             'search' => $search ?? '',
+            'archived' => $archived,
         ]);
     }
 
@@ -72,12 +74,19 @@ class CourierPaymentController extends Controller
 
     public function destroy(Request $request, int $courierPayment): RedirectResponse|JsonResponse
     {
-        $this->paymentService->delete($this->paymentService->find($courierPayment));
+        $this->paymentService->archive($this->paymentService->find($courierPayment));
 
         if ($request->expectsJson()) {
             return response()->json(status: 204);
         }
 
-        return to_route('courier-payments.index')->with('success', 'Payment deleted successfully.');
+        return to_route('courier-payments.index')->with('success', 'Payment archived successfully.');
+    }
+
+    public function restore(int $courierPayment): RedirectResponse
+    {
+        $this->paymentService->restore($courierPayment);
+
+        return to_route('courier-payments.index')->with('success', 'Payment restored successfully.');
     }
 }

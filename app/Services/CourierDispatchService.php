@@ -35,9 +35,10 @@ class CourierDispatchService
         return $search === '' ? null : $search;
     }
 
-    public function paginate(?string $search = null): LengthAwarePaginator
+    public function paginate(?string $search = null, bool $archived = false): LengthAwarePaginator
     {
         return CourierDispatchRequest::query()
+            ->when($archived, fn ($query) => $query->onlyTrashed())
             ->with(['parcel:id,tracking_number', 'assignedHub:id,name'])
             ->when($search, fn ($query) => $query->where(function ($query) use ($search) {
                 $query->where('status', 'like', "%{$search}%")
@@ -100,10 +101,28 @@ class CourierDispatchService
         return $request->refresh();
     }
 
-    public function delete(CourierDispatchRequest $request): void
+    public function archive(CourierDispatchRequest $request): void
     {
         DB::transaction(function () use ($request): void {
             CourierDispatchRequest::query()->lockForUpdate()->findOrFail($request->id)->delete();
+        });
+    }
+
+    public function restore(int $id): void
+    {
+        DB::transaction(function () use ($id): void {
+            $request = CourierDispatchRequest::query()->withTrashed()->lockForUpdate()->findOrFail($id);
+            $request->restore();
+
+            if ($request->status !== CourierDispatchStatus::Assigned) {
+                $request->update([
+                    'status' => CourierDispatchStatus::Pending,
+                    'queued_at' => now(),
+                    'processed_at' => null,
+                    'failure_reason' => null,
+                ]);
+                $this->queue($request);
+            }
         });
     }
 
@@ -112,7 +131,7 @@ class CourierDispatchService
         $shouldProcess = DB::transaction(function () use ($requestId): bool {
             $request = CourierDispatchRequest::query()->lockForUpdate()->find($requestId);
 
-            if (! $request || $request->status === CourierDispatchStatus::Assigned) {
+            if (! $request || in_array($request->status, [CourierDispatchStatus::Assigned, CourierDispatchStatus::Processing], true)) {
                 return false;
             }
 
@@ -147,7 +166,7 @@ class CourierDispatchService
 
             $hubIndex = $hubs->search(fn (TransitHub $hub) => $hub->id === (int) $cursor->last_hub_id);
             $hub = $hubs->get($hubIndex === false ? 0 : ($hubIndex + 1) % $hubs->count());
-            $lastLog = $parcel->statusLogs()->lockForUpdate()->reorder()->orderByDesc('sequence')->first();
+            $lastLog = $parcel->statusLogs()->withTrashed()->lockForUpdate()->reorder()->orderByDesc('sequence')->first();
             $occurredAt = now()->max($lastLog?->occurred_at ?? now());
 
             $parcel->update(['current_hub_id' => $hub->id]);

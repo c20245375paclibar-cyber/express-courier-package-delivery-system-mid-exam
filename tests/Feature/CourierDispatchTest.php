@@ -11,6 +11,7 @@ use App\Models\TransitHub;
 use App\Models\User;
 use App\Services\CourierDispatchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -43,7 +44,15 @@ class CourierDispatchTest extends TestCase
 
         $this->delete(route('dispatch-requests.destroy', $dispatchRequest))
             ->assertRedirect(route('dispatch-requests.index'));
-        $this->assertDatabaseMissing('courier_dispatch_requests', ['id' => $dispatchRequest->id]);
+        $this->assertSoftDeleted('courier_dispatch_requests', ['id' => $dispatchRequest->id]);
+        $this->assertCount(0, app(CourierDispatchService::class)->paginate()->items());
+        $this->assertCount(1, app(CourierDispatchService::class)->paginate(archived: true)->items());
+
+        $this->post(route('dispatch-requests.restore', $dispatchRequest))
+            ->assertRedirect(route('dispatch-requests.index'));
+        $this->assertNotSoftDeleted('courier_dispatch_requests', ['id' => $dispatchRequest->id]);
+        $this->assertSame(CourierDispatchStatus::Pending, $dispatchRequest->fresh()->status);
+        Queue::assertPushed(ProcessCourierDispatch::class, 3);
     }
 
     public function test_dispatch_request_rejects_invalid_and_unrecognized_input(): void
@@ -70,7 +79,7 @@ class CourierDispatchTest extends TestCase
 
         $this->assertDatabaseCount('jobs', 1);
         $payload = json_decode(
-            (string) \Illuminate\Support\Facades\DB::table('jobs')->value('payload'),
+            (string) DB::table('jobs')->value('payload'),
             true,
             flags: JSON_THROW_ON_ERROR,
         );
@@ -127,6 +136,35 @@ class CourierDispatchTest extends TestCase
         $this->get(route('dispatch-requests.index'))->assertOk();
         $this->get(route('dispatch-requests.create'))->assertOk();
         $this->get(route('dispatch-requests.edit', $dispatchRequest))->assertOk();
+    }
+
+    public function test_dispatch_queue_keeps_archived_parcels_visible(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $dispatchRequest = $this->makeDispatchRequest('CXP-DISPATCH-ARCHIVED-PARCEL');
+        $dispatchRequest->parcel()->firstOrFail()->delete();
+
+        $this->get(route('dispatch-requests.index'))->assertOk();
+        $this->assertSame(
+            'CXP-DISPATCH-ARCHIVED-PARCEL',
+            $dispatchRequest->fresh()->load('parcel')->parcel->tracking_number,
+        );
+    }
+
+    public function test_restoring_assigned_dispatch_request_does_not_queue_it_again(): void
+    {
+        Queue::fake();
+        $dispatchRequest = $this->makeDispatchRequest('CXP-DISPATCH-RESTORE-ASSIGNED');
+        $dispatchRequest->update([
+            'status' => CourierDispatchStatus::Assigned,
+            'processed_at' => now(),
+        ]);
+        $dispatchRequest->delete();
+
+        app(CourierDispatchService::class)->restore($dispatchRequest->id);
+
+        $this->assertSame(CourierDispatchStatus::Assigned, $dispatchRequest->fresh()->status);
+        Queue::assertNotPushed(ProcessCourierDispatch::class);
     }
 
     private function makeDispatchRequest(string $trackingNumber): CourierDispatchRequest

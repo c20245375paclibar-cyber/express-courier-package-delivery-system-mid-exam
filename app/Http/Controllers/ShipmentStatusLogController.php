@@ -17,10 +17,12 @@ class ShipmentStatusLogController extends Controller
     public function index(Request $request): Response
     {
         $search = $this->statusLogService->normalizeSearch($request->query('search'));
+        $archived = $request->boolean('archived');
 
         return Inertia::render('shipment-status-logs/index', [
-            'logs' => $this->statusLogService->paginate($search),
+            'logs' => $this->statusLogService->paginate($search, $archived),
             'search' => $search ?? '',
+            'archived' => $archived,
         ]);
     }
 
@@ -56,8 +58,15 @@ class ShipmentStatusLogController extends Controller
 
     public function destroy(int $shipmentStatusLog): RedirectResponse
     {
-        $this->statusLogService->delete($this->statusLogService->find($shipmentStatusLog));
+        $this->statusLogService->archive($this->statusLogService->find($shipmentStatusLog));
 
-        return to_route('shipment-status-logs.index')->with('success', 'Shipment status deleted successfully.');
+        return to_route('shipment-status-logs.index')->with('success', 'Shipment status archived successfully.');
+    }
+
+    public function restore(int $shipmentStatusLog): RedirectResponse
+    {
+        $this->statusLogService->restore($shipmentStatusLog);
+
+        return to_route('shipment-status-logs.index')->with('success', 'Shipment status restored successfully.');
     }
 }

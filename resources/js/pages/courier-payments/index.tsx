@@ -17,7 +17,7 @@ interface Paginator<T> {
     next_page_url: string | null;
 }
 
-export default function CourierPaymentsIndex({ payments, search }: { payments: Paginator<Payment>; search: string }) {
+export default function CourierPaymentsIndex({ payments, search, archived }: { payments: Paginator<Payment>; search: string; archived: boolean }) {
     const rows: Paginator<ResourceRow> = {
         ...payments,
         data: payments.data.map((payment) => ({
@@ -35,15 +35,21 @@ export default function CourierPaymentsIndex({ payments, search }: { payments: P
     return (
         <CourierResourceIndex
             title="Courier payments"
-            description="Manage payment amounts and settlement status for parcel shipments."
+            description={
+                archived
+                    ? 'Archived courier payment records. Restore a payment to return it to the active list.'
+                    : 'Manage payment amounts and settlement status for parcel shipments.'
+            }
             resource="Courier payments"
             indexUrl={route('courier-payments.index')}
             createUrl={route('courier-payments.create')}
             editUrl={(id) => route('courier-payments.edit', id)}
             deleteUrl={(id) => route('courier-payments.destroy', id)}
+            restoreUrl={(id) => route('courier-payments.restore', id)}
             columns={['Tracking number', 'Amount', 'Status', 'Method', 'Paid at']}
             rows={rows}
             search={search}
+            archived={archived}
         />
     );
 }

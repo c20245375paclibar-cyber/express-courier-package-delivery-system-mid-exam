@@ -17,10 +17,12 @@ class ParcelController extends Controller
     public function index(Request $request): Response
     {
         $search = $this->parcelService->normalizeSearch($request->query('search'));
+        $archived = $request->boolean('archived');
 
         return Inertia::render('parcels/index', [
-            'parcels' => $this->parcelService->paginate($search),
+            'parcels' => $this->parcelService->paginate($search, $archived),
             'search' => $search ?? '',
+            'archived' => $archived,
         ]);
     }
 
@@ -57,8 +59,15 @@ class ParcelController extends Controller
 
     public function destroy(int $parcel): RedirectResponse
     {
-        $this->parcelService->delete($this->parcelService->find($parcel));
+        $this->parcelService->archive($this->parcelService->find($parcel));
 
-        return to_route('parcels.index')->with('success', 'Parcel deleted successfully.');
+        return to_route('parcels.index')->with('success', 'Parcel archived successfully.');
+    }
+
+    public function restore(int $parcel): RedirectResponse
+    {
+        $this->parcelService->restore($parcel);
+
+        return to_route('parcels.index')->with('success', 'Parcel restored successfully.');
     }
 }

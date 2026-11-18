@@ -5,9 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Parcel extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'tracking_number',
         'sender_customer_id',
@@ -28,17 +31,17 @@ class Parcel extends Model
 
     public function sender(): BelongsTo
     {
-        return $this->belongsTo(Customer::class, 'sender_customer_id');
+        return $this->belongsTo(Customer::class, 'sender_customer_id')->withTrashed();
     }
 
     public function recipient(): BelongsTo
     {
-        return $this->belongsTo(Customer::class, 'recipient_customer_id');
+        return $this->belongsTo(Customer::class, 'recipient_customer_id')->withTrashed();
     }
 
     public function currentHub(): BelongsTo
     {
-        return $this->belongsTo(TransitHub::class, 'current_hub_id');
+        return $this->belongsTo(TransitHub::class, 'current_hub_id')->withTrashed();
     }
 
     public function statusLogs(): HasMany

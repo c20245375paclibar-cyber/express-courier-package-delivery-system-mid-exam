@@ -16,7 +16,7 @@ interface Paginator<T> {
     next_page_url: string | null;
 }
 
-export default function CustomersIndex({ customers, search }: { customers: Paginator<Customer>; search: string }) {
+export default function CustomersIndex({ customers, search, archived }: { customers: Paginator<Customer>; search: string; archived: boolean }) {
     const rows: Paginator<ResourceRow> = {
         ...customers,
         data: customers.data.map((customer) => ({
@@ -28,15 +28,21 @@ export default function CustomersIndex({ customers, search }: { customers: Pagin
     return (
         <CourierResourceIndex
             title="Customers"
-            description="Manage the sender and recipient records linked to parcel shipments."
+            description={
+                archived
+                    ? 'Archived customer records. Restore a customer to use it again.'
+                    : 'Manage the sender and recipient records linked to parcel shipments.'
+            }
             resource="Customers"
             indexUrl={route('customers.index')}
             createUrl={route('customers.create')}
             editUrl={(id) => route('customers.edit', id)}
             deleteUrl={(id) => route('customers.destroy', id)}
+            restoreUrl={(id) => route('customers.restore', id)}
             columns={['Name', 'Address', 'Sent parcels', 'Received parcels']}
             rows={rows}
             search={search}
+            archived={archived}
         />
     );
 }
