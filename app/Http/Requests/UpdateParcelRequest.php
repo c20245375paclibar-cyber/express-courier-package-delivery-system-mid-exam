@@ -74,7 +74,16 @@ class UpdateParcelRequest extends FormRequest
             if ($extra !== []) {
                 $validator->errors()->add('input', 'Unrecognized input fields cannot be accepted: '.implode(', ', $extra));
             }
+
+            foreach (ParcelService::findDuplicateContactFields($this->all()) as $field => $duplicateOf) {
+                $validator->errors()->add($field, 'This value must be different from the '.$this->attributeName($duplicateOf).'.');
+            }
         });
+    }
+
+    private function attributeName(string $field): string
+    {
+        return str_replace('_', ' ', $field);
     }
 
     public function messages(): array

@@ -46,6 +46,28 @@ class ParcelService
         return TransitHubService::isPlausibleName($value);
     }
 
+    public static function findDuplicateContactFields(array $data): array
+    {
+        $seen = [];
+        $duplicates = [];
+
+        foreach (['sender_name', 'recipient_name', 'sender_address', 'recipient_address', 'current_hub_name'] as $field) {
+            $value = $data[$field] ?? null;
+            if (! is_string($value) || trim($value) === '') {
+                continue;
+            }
+
+            $normalized = mb_strtolower(trim((string) preg_replace('/\s+/', ' ', $value)), 'UTF-8');
+            if (isset($seen[$normalized])) {
+                $duplicates[$field] = $seen[$normalized];
+            } else {
+                $seen[$normalized] = $field;
+            }
+        }
+
+        return $duplicates;
+    }
+
     public function __construct(
         private readonly CustomerService $customerService,
         private readonly TransitHubService $transitHubService,

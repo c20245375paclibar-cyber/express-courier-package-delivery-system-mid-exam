@@ -225,6 +225,59 @@ class CourierWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_parcel_creation_rejects_the_same_gibberish_value_in_all_contact_and_location_fields(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->from(route('parcels.create'))
+            ->post(route('parcels.store'), [
+                'tracking_number' => 'CXP-REPEATED-GIBBERISH',
+                'sender_name' => 'slakfnkjasdhfjsa',
+                'sender_address' => 'slakfnkjasdhfjsa',
+                'recipient_name' => 'slakfnkjasdhfjsa',
+                'recipient_address' => 'slakfnkjasdhfjsa',
+                'parcel_weight_kg' => 1,
+                'delivery_type' => 'standard',
+                'current_hub_name' => 'slakfnkjasdhfjsa',
+                'initial_status' => 'received',
+            ])
+            ->assertSessionHasErrors([
+                'sender_name',
+                'sender_address',
+                'recipient_name',
+                'recipient_address',
+                'current_hub_name',
+            ]);
+
+        $this->assertDatabaseMissing('parcels', ['tracking_number' => 'CXP-REPEATED-GIBBERISH']);
+    }
+
+    public function test_parcel_creation_rejects_repeated_values_between_contact_and_location_fields(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->from(route('parcels.create'))
+            ->post(route('parcels.store'), [
+                'tracking_number' => 'CXP-REPEATED-VALUES',
+                'sender_name' => 'Main Street',
+                'sender_address' => 'Main Street',
+                'recipient_name' => 'Main Street',
+                'recipient_address' => 'Main Street',
+                'parcel_weight_kg' => 1,
+                'delivery_type' => 'standard',
+                'current_hub_name' => 'Main Street',
+                'initial_status' => 'received',
+            ])
+            ->assertSessionHasErrors([
+                'sender_address',
+                'recipient_name',
+                'recipient_address',
+                'current_hub_name',
+            ]);
+
+        $this->assertDatabaseMissing('parcels', ['tracking_number' => 'CXP-REPEATED-VALUES']);
+    }
+
     public function test_status_log_rejects_gibberish_optional_hub_name(): void
     {
         $this->actingAs(User::factory()->create());
