@@ -7,7 +7,8 @@ use App\Models\Customer;
 use App\Models\Parcel;
 use App\Models\ShipmentStatusLog;
 use App\Models\User;
-use App\Services\CourierService;
+use App\Services\ParcelService;
+use App\Services\ShipmentStatusLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -165,8 +166,8 @@ class CourierWorkflowTest extends TestCase
         $matchingParcel = $this->makeParcel(['tracking_number' => 'CXP-SEARCH']);
         $this->makeParcel(['tracking_number' => 'CXP-OTHER']);
 
-        $service = app(CourierService::class);
-        $results = $service->paginateParcels($service->normalizeSearch('<b>cxp-search</b>'));
+        $service = app(ParcelService::class);
+        $results = $service->paginate($service->normalizeSearch('<b>cxp-search</b>'));
 
         $this->assertCount(1, $results->items());
         $this->assertSame($matchingParcel->id, $results->items()[0]->id);
@@ -178,8 +179,8 @@ class CourierWorkflowTest extends TestCase
         $matchingParcel = $this->makeParcel(['tracking_number' => 'CXP-STATUS']);
         $this->makeParcel(['tracking_number' => 'CXP-OTHER']);
 
-        $service = app(CourierService::class);
-        $results = $service->paginateStatusLogs($service->normalizeSearch('CXP-STATUS'));
+        $service = app(ShipmentStatusLogService::class);
+        $results = $service->paginate($service->normalizeSearch('CXP-STATUS'));
 
         $this->assertCount(1, $results->items());
         $this->assertSame($matchingParcel->id, $results->items()[0]->parcel->id);

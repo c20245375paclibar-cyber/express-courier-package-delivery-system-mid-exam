@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use App\Enums\ShipmentStatus;
 
 return new class extends Migration
 {
@@ -13,7 +14,7 @@ return new class extends Migration
             $table->foreignId('parcel_id')->constrained()->cascadeOnDelete();
             $table->foreignId('transit_hub_id')->nullable()->constrained('transit_hubs')->nullOnDelete();
             $table->unsignedInteger('sequence');
-            $table->string('status', 30);
+            $table->enum('status', array_column(ShipmentStatus::cases(), 'value'));
             $table->timestamp('occurred_at');
             $table->timestamps();
 

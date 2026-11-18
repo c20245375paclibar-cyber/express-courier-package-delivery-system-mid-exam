@@ -2,34 +2,48 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Customer;
+use App\Http\Requests\StoreCustomerRequest;
+use App\Http\Requests\UpdateCustomerRequest;
 use App\Services\CustomerService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class CustomerController extends Controller
 {
     public function __construct(private readonly CustomerService $customerService) {}
 
-    public function index(): JsonResponse
+    public function index(Request $request): Response|JsonResponse
     {
-        return response()->json($this->customerService->paginate());
+        $search = $this->customerService->normalizeSearch($request->query('search'));
+        $customers = $this->customerService->paginate($search);
+
+        if ($request->expectsJson()) {
+            return response()->json($customers);
+        }
+
+        return Inertia::render('customers/index', [
+            'customers' => $customers,
+            'search' => $search ?? '',
+        ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function create(): Response
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'address' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('customers')->where(fn ($query) => $query->where('name', $request->input('name'))),
-            ],
-        ]);
+        return Inertia::render('customers/create');
+    }
 
-        return response()->json($this->customerService->create($data), 201);
+    public function store(StoreCustomerRequest $request): RedirectResponse|JsonResponse
+    {
+        $customer = $this->customerService->create($request->validated());
+
+        if ($request->expectsJson()) {
+            return response()->json($customer, 201);
+        }
+
+        return to_route('customers.index')->with('success', 'Customer created successfully.');
     }
 
     public function show(int $customer): JsonResponse
@@ -37,29 +51,30 @@ class CustomerController extends Controller
         return response()->json($this->customerService->find($customer));
     }
 
-    public function update(Request $request, int $customer): JsonResponse
+    public function edit(int $customer): Response
     {
-        $model = Customer::query()->findOrFail($customer);
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'address' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('customers')
-                    ->where(fn ($query) => $query->where('name', $request->input('name')))
-                    ->ignore($model->id),
-            ],
-        ]);
-
-        return response()->json($this->customerService->update($model, $data));
+        return Inertia::render('customers/edit', ['customer' => $this->customerService->find($customer)]);
     }
 
-    public function destroy(int $customer): JsonResponse
+    public function update(UpdateCustomerRequest $request, int $customer): RedirectResponse|JsonResponse
     {
-        $model = Customer::query()->findOrFail($customer);
-        $this->customerService->delete($model);
+        $updatedCustomer = $this->customerService->update($this->customerService->find($customer), $request->validated());
 
-        return response()->json(status: 204);
+        if ($request->expectsJson()) {
+            return response()->json($updatedCustomer);
+        }
+
+        return to_route('customers.index')->with('success', 'Customer updated successfully.');
+    }
+
+    public function destroy(Request $request, int $customer): RedirectResponse|JsonResponse
+    {
+        $this->customerService->delete($this->customerService->find($customer));
+
+        if ($request->expectsJson()) {
+            return response()->json(status: 204);
+        }
+
+        return to_route('customers.index')->with('success', 'Customer deleted successfully.');
     }
 }

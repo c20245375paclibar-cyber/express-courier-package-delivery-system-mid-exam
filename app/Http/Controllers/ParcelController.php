@@ -4,22 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreParcelRequest;
 use App\Http\Requests\UpdateParcelRequest;
-use App\Services\CourierService;
+use App\Services\ParcelService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-    use Inertia\Response;
+use Inertia\Response;
 
-    class ParcelController extends Controller
+class ParcelController extends Controller
+{
+    public function __construct(private readonly ParcelService $parcelService) {}
+
+    public function index(Request $request): Response
     {
-        public function __construct(private readonly CourierService $courierService) {}
-
-        public function index(Request $request): Response
-        {
-            $search = $this->courierService->normalizeSearch($request->query('search'));
+        $search = $this->parcelService->normalizeSearch($request->query('search'));
 
         return Inertia::render('parcels/index', [
-            'parcels' => $this->courierService->paginateParcels($search),
+            'parcels' => $this->parcelService->paginate($search),
             'search' => $search ?? '',
         ]);
     }
@@ -27,22 +27,38 @@ use Inertia\Inertia;
     public function create(): Response
     {
         return Inertia::render('parcels/create', [
-            'generated_tracking_number' => $this->courierService->generateTrackingNumber(),
+            'generated_tracking_number' => $this->parcelService->generateTrackingNumber(),
+            'deliveryTypes' => ParcelService::DELIVERY_TYPES,
+            'shipmentStatuses' => ParcelService::SHIPMENT_STATUSES,
+        ]);
+    }
+
+    public function edit(int $parcel): Response
+    {
+        return Inertia::render('parcels/edit', [
+            'parcel' => $this->parcelService->find($parcel)->load(['sender', 'recipient', 'currentHub']),
+            'deliveryTypes' => ParcelService::DELIVERY_TYPES,
         ]);
     }
 
     public function store(StoreParcelRequest $request): RedirectResponse
     {
-        $this->courierService->createParcel($request->validated());
+        $this->parcelService->create($request->validated());
 
         return to_route('parcels.index')->with('success', 'Parcel created successfully.');
     }
 
     public function update(UpdateParcelRequest $request, int $parcel): RedirectResponse
     {
-        $this->courierService->updateParcel($this->courierService->findParcel($parcel), $request->validated());
+        $this->parcelService->update($this->parcelService->find($parcel), $request->validated());
 
         return to_route('parcels.index')->with('success', 'Parcel updated successfully.');
     }
+
+    public function destroy(int $parcel): RedirectResponse
+    {
+        $this->parcelService->delete($this->parcelService->find($parcel));
+
+        return to_route('parcels.index')->with('success', 'Parcel deleted successfully.');
+    }
 }
-    

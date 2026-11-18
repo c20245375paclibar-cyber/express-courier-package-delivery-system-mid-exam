@@ -48,7 +48,15 @@ function openNativePicker(event: MouseEvent<HTMLInputElement>) {
     }
 }
 
-export default function CreateParcel({ generated_tracking_number }: { generated_tracking_number: string }) {
+export default function CreateParcel({
+    generated_tracking_number,
+    deliveryTypes,
+    shipmentStatuses,
+}: {
+    generated_tracking_number: string;
+    deliveryTypes: string[];
+    shipmentStatuses: string[];
+}) {
     const { data, setData, post, processing, errors, transform } = useForm<ParcelForm>({
         tracking_number: generated_tracking_number,
         sender_name: '',
@@ -143,9 +151,9 @@ export default function CreateParcel({ generated_tracking_number }: { generated_
                         <div className="grid gap-2">
                             <Label htmlFor="delivery_type">Delivery speed</Label>
                             <select id="delivery_type" className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={data.delivery_type} onChange={(event) => setData('delivery_type', event.target.value)}>
-                                <option value="standard">Standard (base rate)</option>
-                                <option value="express">Express (1.5× rate)</option>
-                                <option value="overnight">Overnight (2.5× rate)</option>
+                                {deliveryTypes.map((type) => (
+                                    <option key={type} value={type}>{type === 'standard' ? 'Standard (base rate)' : `${type[0].toUpperCase()}${type.slice(1)} (${type === 'express' ? '1.5' : '2.5'}× rate)`}</option>
+                                ))}
                             </select>
                             <InputError message={errors.delivery_type} />
                         </div>
@@ -157,12 +165,9 @@ export default function CreateParcel({ generated_tracking_number }: { generated_
                         <div className="grid gap-2">
                             <Label htmlFor="initial_status">Initial shipment status</Label>
                             <select id="initial_status" className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={data.initial_status} onChange={(event) => setData('initial_status', event.target.value)}>
-                                <option value="received">Received</option>
-                                <option value="picked_up">Picked up</option>
-                                <option value="in_transit">In transit</option>
-                                <option value="out_for_delivery">Out for delivery</option>
-                                <option value="delivered">Delivered</option>
-                                <option value="exception">Exception</option>
+                                {shipmentStatuses.map((status) => (
+                                    <option key={status} value={status}>{status.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())}</option>
+                                ))}
                             </select>
                             <InputError message={errors.initial_status} />
                         </div>

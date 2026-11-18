@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Services\CourierService;
+use App\Services\ParcelService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -11,7 +11,7 @@ class UpdateParcelRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
-        $this->merge(app(CourierService::class)->sanitizeParcelInput($this->all()));
+        $this->merge(app(ParcelService::class)->sanitizeInput($this->all()));
     }
 
     public function authorize(): bool
@@ -26,29 +26,29 @@ class UpdateParcelRequest extends FormRequest
         return [
             'tracking_number' => ['required', 'string', 'max:50', Rule::unique('parcels', 'tracking_number')->ignore($parcelId)],
             'sender_name' => ['required', 'string', 'max:255', function ($attribute, $value, $fail) {
-                if (! CourierService::isPlausibleName($value)) {
+                if (! ParcelService::isPlausibleName($value)) {
                     $fail('Enter a valid name using letters and standard name punctuation.');
                 }
             }],
             'sender_address' => ['required', 'string', 'max:255', function ($attribute, $value, $fail) {
-                if (! CourierService::isPlausibleAddress($value)) {
+                if (! ParcelService::isPlausibleAddress($value)) {
                     $fail('Enter a valid address with a location name or street.');
                 }
             }],
             'recipient_name' => ['required', 'string', 'max:255', function ($attribute, $value, $fail) {
-                if (! CourierService::isPlausibleName($value)) {
+                if (! ParcelService::isPlausibleName($value)) {
                     $fail('Enter a valid name using letters and standard name punctuation.');
                 }
             }],
             'recipient_address' => ['required', 'string', 'max:255', function ($attribute, $value, $fail) {
-                if (! CourierService::isPlausibleAddress($value)) {
+                if (! ParcelService::isPlausibleAddress($value)) {
                     $fail('Enter a valid address with a location name or street.');
                 }
             }],
             'parcel_weight_kg' => ['required', 'numeric', 'gt:0', 'max:99999.999'],
-            'delivery_type' => ['required', Rule::in(CourierService::DELIVERY_TYPES)],
+            'delivery_type' => ['required', Rule::in(ParcelService::DELIVERY_TYPES)],
             'current_hub_name' => ['nullable', 'string', 'max:120', function ($attribute, $value, $fail) {
-                if (! CourierService::isPlausibleHubName($value)) {
+                if (! ParcelService::isPlausibleHubName($value)) {
                     $fail('Enter a valid transit hub name.');
                 }
             }],

@@ -2,7 +2,8 @@
 
 namespace App\Http\Requests;
 
-use App\Services\CourierService;
+use App\Services\ShipmentStatusLogService;
+use App\Services\TransitHubService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -11,7 +12,7 @@ class StoreShipmentStatusLogRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
-        $this->merge(app(CourierService::class)->sanitizeStatusLogInput($this->all()));
+        $this->merge(app(ShipmentStatusLogService::class)->sanitizeInput($this->all()));
     }
 
     public function authorize(): bool
@@ -23,9 +24,9 @@ class StoreShipmentStatusLogRequest extends FormRequest
     {
         return [
             'parcel_id' => ['required', 'integer', 'exists:parcels,id'],
-            'status' => ['required', Rule::in(CourierService::SHIPMENT_STATUSES)],
+            'status' => ['required', Rule::in(ShipmentStatusLogService::STATUSES)],
             'current_hub_name' => ['nullable', 'string', 'max:120', function ($attribute, $value, $fail) {
-                if (! CourierService::isPlausibleHubName($value)) {
+                if (! TransitHubService::isPlausibleName($value)) {
                     $fail('Enter a valid transit hub name.');
                 }
             }],

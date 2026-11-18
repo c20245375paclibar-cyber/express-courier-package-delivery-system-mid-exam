@@ -68,6 +68,7 @@ export default function ShipmentStatusLogsIndex({ logs, search: initialSearch }:
                                 <TableHead>Status</TableHead>
                                 <TableHead>Transit hub</TableHead>
                                 <TableHead>Date and time</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -78,9 +79,19 @@ export default function ShipmentStatusLogsIndex({ logs, search: initialSearch }:
                                     <TableCell className="capitalize">{log.status.replaceAll('_', ' ')}</TableCell>
                                     <TableCell>{log.transit_hub?.name ?? '—'}</TableCell>
                                     <TableCell>{new Date(log.occurred_at).toLocaleString()}</TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Button variant="outline" size="sm" asChild><Link href={route('shipment-status-logs.edit', log.id)}>Edit</Link></Button>
+                                            <Button variant="destructive" size="sm" onClick={() => {
+                                                if (window.confirm('Delete this status event?')) {
+                                                    router.delete(route('shipment-status-logs.destroy', log.id));
+                                                }
+                                            }}>Delete</Button>
+                                        </div>
+                                    </TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground">No status updates have been recorded.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No status updates have been recorded.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>

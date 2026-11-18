@@ -2,58 +2,82 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\CourierService;
+use App\Http\Requests\StoreCourierPaymentRequest;
+use App\Http\Requests\UpdateCourierPaymentRequest;
+use App\Services\CourierPaymentService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class CourierPaymentController extends Controller
 {
-    public function __construct(private readonly CourierService $courierService) {}
+    public function __construct(private readonly CourierPaymentService $paymentService) {}
 
-    public function index(): JsonResponse
+    public function index(Request $request): Response|JsonResponse
     {
-        return response()->json($this->courierService->paginatePayments());
+        $search = $this->paymentService->normalizeSearch($request->query('search'));
+        $payments = $this->paymentService->paginate($search);
+
+        if ($request->expectsJson()) {
+            return response()->json($payments);
+        }
+
+        return Inertia::render('courier-payments/index', [
+            'payments' => $payments,
+            'search' => $search ?? '',
+        ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function create(): Response
     {
-        $data = $request->validate([
-            'parcel_id' => ['required', 'integer', 'exists:parcels,id'],
-            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
-            'payment_status' => ['required', 'string', Rule::in(['pending', 'paid'])],
-            'payment_method' => ['nullable', 'string', 'max:30'],
-            'paid_at' => ['nullable', 'date'],
-        ]);
+        return Inertia::render('courier-payments/create', $this->paymentService->getFormOptions());
+    }
 
-        return response()->json($this->courierService->createPayment($data), 201);
+    public function store(StoreCourierPaymentRequest $request): RedirectResponse|JsonResponse
+    {
+        $payment = $this->paymentService->create($request->validated());
+
+        if ($request->expectsJson()) {
+            return response()->json($payment->load(['parcel.sender', 'parcel.recipient']), 201);
+        }
+
+        return to_route('courier-payments.index')->with('success', 'Payment created successfully.');
     }
 
     public function show(int $courierPayment): JsonResponse
     {
-        return response()->json($this->courierService->findPayment($courierPayment));
+        return response()->json($this->paymentService->find($courierPayment));
     }
 
-    public function update(Request $request, int $courierPayment): JsonResponse
+    public function edit(int $courierPayment): Response
     {
-        $data = $request->validate([
-            'parcel_id' => ['required', 'integer', 'exists:parcels,id'],
-            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
-            'payment_status' => ['required', 'string', Rule::in(['pending', 'paid'])],
-            'payment_method' => ['nullable', 'string', 'max:30'],
-            'paid_at' => ['nullable', 'date'],
+        return Inertia::render('courier-payments/edit', [
+            ...$this->paymentService->getFormOptions(),
+            'payment' => $this->paymentService->find($courierPayment),
         ]);
-
-        $payment = $this->courierService->findPayment($courierPayment);
-
-        return response()->json($this->courierService->updatePayment($payment, $data));
     }
 
-    public function destroy(int $courierPayment): JsonResponse
+    public function update(UpdateCourierPaymentRequest $request, int $courierPayment): RedirectResponse|JsonResponse
     {
-        $payment = $this->courierService->findPayment($courierPayment);
-        $this->courierService->deletePayment($payment);
+        $payment = $this->paymentService->update($this->paymentService->find($courierPayment), $request->validated());
 
-        return response()->json(status: 204);
+        if ($request->expectsJson()) {
+            return response()->json($payment->load(['parcel.sender', 'parcel.recipient']));
+        }
+
+        return to_route('courier-payments.index')->with('success', 'Payment updated successfully.');
+    }
+
+    public function destroy(Request $request, int $courierPayment): RedirectResponse|JsonResponse
+    {
+        $this->paymentService->delete($this->paymentService->find($courierPayment));
+
+        if ($request->expectsJson()) {
+            return response()->json(status: 204);
+        }
+
+        return to_route('courier-payments.index')->with('success', 'Payment deleted successfully.');
     }
 }

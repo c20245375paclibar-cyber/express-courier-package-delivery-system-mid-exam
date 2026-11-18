@@ -1,0 +1,49 @@
+import CourierResourceIndex, { ResourceRow } from '@/components/courier-resource-index';
+
+interface Payment {
+    id: number;
+    amount: string;
+    payment_status: string;
+    payment_method: string | null;
+    paid_at: string | null;
+    parcel: { tracking_number: string };
+}
+
+interface Paginator<T> {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    prev_page_url: string | null;
+    next_page_url: string | null;
+}
+
+export default function CourierPaymentsIndex({ payments, search }: { payments: Paginator<Payment>; search: string }) {
+    const rows: Paginator<ResourceRow> = {
+        ...payments,
+        data: payments.data.map((payment) => ({
+            id: payment.id,
+            values: [
+                payment.parcel.tracking_number,
+                `$${Number(payment.amount).toFixed(2)}`,
+                payment.payment_status.replaceAll('_', ' '),
+                payment.payment_method?.replaceAll('_', ' ') ?? '',
+                payment.paid_at ? new Date(payment.paid_at).toLocaleString() : '',
+            ],
+        })),
+    };
+
+    return (
+        <CourierResourceIndex
+            title="Courier payments"
+            description="Manage payment amounts and settlement status for parcel shipments."
+            resource="Courier payments"
+            indexUrl={route('courier-payments.index')}
+            createUrl={route('courier-payments.create')}
+            editUrl={(id) => route('courier-payments.edit', id)}
+            deleteUrl={(id) => route('courier-payments.destroy', id)}
+            columns={['Tracking number', 'Amount', 'Status', 'Method', 'Paid at']}
+            rows={rows}
+            search={search}
+        />
+    );
+}

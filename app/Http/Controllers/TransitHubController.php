@@ -2,50 +2,79 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\TransitHub;
+use App\Http\Requests\StoreTransitHubRequest;
+use App\Http\Requests\UpdateTransitHubRequest;
 use App\Services\TransitHubService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class TransitHubController extends Controller
 {
-    public function __construct(private readonly TransitHubService $hubService) {}
+    public function __construct(private readonly TransitHubService $transitHubService) {}
 
-    public function index(): JsonResponse
+    public function index(Request $request): Response|JsonResponse
     {
-        return response()->json($this->hubService->paginate());
+        $search = $this->transitHubService->normalizeSearch($request->query('search'));
+        $hubs = $this->transitHubService->paginate($search);
+
+        if ($request->expectsJson()) {
+            return response()->json($hubs);
+        }
+
+        return Inertia::render('transit-hubs/index', [
+            'hubs' => $hubs,
+            'search' => $search ?? '',
+        ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function create(): Response
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('transit_hubs', 'name')],
-        ]);
+        return Inertia::render('transit-hubs/create');
+    }
 
-        return response()->json($this->hubService->create($data), 201);
+    public function store(StoreTransitHubRequest $request): RedirectResponse|JsonResponse
+    {
+        $hub = $this->transitHubService->create($request->validated());
+
+        if ($request->expectsJson()) {
+            return response()->json($hub, 201);
+        }
+
+        return to_route('transit-hubs.index')->with('success', 'Transit hub created successfully.');
     }
 
     public function show(int $transitHub): JsonResponse
     {
-        return response()->json($this->hubService->find($transitHub));
+        return response()->json($this->transitHubService->find($transitHub));
     }
 
-    public function update(Request $request, int $transitHub): JsonResponse
+    public function edit(int $transitHub): Response
     {
-        $hub = TransitHub::query()->findOrFail($transitHub);
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('transit_hubs', 'name')->ignore($hub->id)],
-        ]);
-
-        return response()->json($this->hubService->update($hub, $data));
+        return Inertia::render('transit-hubs/edit', ['hub' => $this->transitHubService->find($transitHub)]);
     }
 
-    public function destroy(int $transitHub): JsonResponse
+    public function update(UpdateTransitHubRequest $request, int $transitHub): RedirectResponse|JsonResponse
     {
-        $hub = TransitHub::query()->findOrFail($transitHub);
-        $this->hubService->delete($hub);
+        $hub = $this->transitHubService->update($this->transitHubService->find($transitHub), $request->validated());
 
-        return response()->json(status: 204);
+        if ($request->expectsJson()) {
+            return response()->json($hub);
+        }
+
+        return to_route('transit-hubs.index')->with('success', 'Transit hub updated successfully.');
+    }
+
+    public function destroy(Request $request, int $transitHub): RedirectResponse|JsonResponse
+    {
+        $this->transitHubService->delete($this->transitHubService->find($transitHub));
+
+        if ($request->expectsJson()) {
+            return response()->json(status: 204);
+        }
+
+        return to_route('transit-hubs.index')->with('success', 'Transit hub deleted successfully.');
     }
 }

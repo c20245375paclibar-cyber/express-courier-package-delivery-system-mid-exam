@@ -22,6 +22,12 @@ The normalized design uses five domain tables:
 4. **shipment_status_logs** (`id`, `parcel_id`, `transit_hub_id`, `sequence`, `status`, `occurred_at`) — each event is its own row; `(parcel_id, sequence)` is unique and the service appends the next sequence transactionally.
 5. **courier_payments** (`id`, `parcel_id`, `amount`, `payment_status`, `payment_method`, `paid_at`) — payment facts are separated from shipment facts and can represent future payment attempts.
 
+The database constrains delivery type (`standard`, `express`, `overnight`), shipment status (`received`, `picked_up`, `in_transit`, `out_for_delivery`, `delivered`, `exception`), and payment status/method to their supported enum values. The corresponding CRUD screens use dropdowns populated from the same supported choices and validate them server-side.
+
+Business logic is separated into `ParcelService`, `ShipmentStatusLogService`, `CustomerService`, `TransitHubService`, and `CourierPaymentService`. Each service owns its domain's input sanitization and data operations; form requests validate and sanitize controller input before invoking them.
+
+Each domain resource has authenticated index, create, update, edit, and delete routes. Customer deletion is rejected while a parcel references the customer; removing a hub clears its optional location references, and parcel deletion cascades to its status and payment records.
+
 All non-key attributes in these tables describe the key, the whole key, and nothing but the key. Foreign keys enforce the relationships; parcel deletion cascades to its dependent event/payment records, while customer deletion is restricted and hub deletion clears optional references.
 
 ## Shipping rule

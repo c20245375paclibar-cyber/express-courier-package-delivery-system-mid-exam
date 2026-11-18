@@ -89,6 +89,7 @@ export default function ParcelsIndex({ parcels, search: initialSearch }: { parce
                                 <TableHead>Delivery</TableHead>
                                 <TableHead className="text-right">Weight</TableHead>
                                 <TableHead className="text-right">Shipping</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -101,10 +102,20 @@ export default function ParcelsIndex({ parcels, search: initialSearch }: { parce
                                     <TableCell className="capitalize">{parcel.delivery_type}</TableCell>
                                     <TableCell className="text-right">{Number(parcel.parcel_weight_kg).toFixed(3)} kg</TableCell>
                                     <TableCell className="text-right">${Number(parcel.shipping_cost).toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Button variant="outline" size="sm" asChild><Link href={route('parcels.edit', parcel.id)}>Edit</Link></Button>
+                                            <Button variant="destructive" size="sm" onClick={() => {
+                                                if (window.confirm('Delete this parcel and its status/payment records?')) {
+                                                    router.delete(route('parcels.destroy', parcel.id));
+                                                }
+                                            }}>Delete</Button>
+                                        </div>
+                                    </TableCell>
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-40 text-center">
+                                    <TableCell colSpan={8} className="h-40 text-center">
                                         <PackagePlus className="mx-auto mb-2 size-8 text-muted-foreground" />
                                         <p className="font-medium">No parcels yet</p>
                                         <p className="mt-1 text-sm text-muted-foreground">Create your first parcel to start tracking deliveries.</p>
@@ -114,7 +125,7 @@ export default function ParcelsIndex({ parcels, search: initialSearch }: { parce
                         </TableBody>
                         <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={6}>Shipping total on this page</TableCell>
+                                <TableCell colSpan={7}>Shipping total on this page</TableCell>
                                 <TableCell className="text-right">${pageTotal.toFixed(2)}</TableCell>
                             </TableRow>
                         </TableFooter>

@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, ClipboardList, Folder, LayoutGrid } from 'lucide-react';
+import { BookOpen, ClipboardList, CreditCard, Folder, LayoutGrid, MapPin, Users } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -22,6 +22,21 @@ const mainNavItems: NavItem[] = [
         title: 'Status history',
         url: '/shipment-status-logs',
         icon: BookOpen,
+    },
+    {
+        title: 'Customers',
+        url: '/customers',
+        icon: Users,
+    },
+    {
+        title: 'Transit hubs',
+        url: '/transit-hubs',
+        icon: MapPin,
+    },
+    {
+        title: 'Payments',
+        url: '/courier-payments',
+        icon: CreditCard,
     },
 ];
 

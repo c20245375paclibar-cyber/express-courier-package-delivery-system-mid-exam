@@ -3,6 +3,8 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 
 return new class extends Migration
 {
@@ -12,8 +14,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('parcel_id')->constrained()->cascadeOnDelete();
             $table->decimal('amount', 10, 2);
-            $table->string('payment_status', 20)->default('pending');
-            $table->string('payment_method', 30)->nullable();
+            $table->enum('payment_status', array_column(PaymentStatus::cases(), 'value'))->default(PaymentStatus::Pending->value);
+            $table->enum('payment_method', array_column(PaymentMethod::cases(), 'value'))->nullable();
             $table->timestamp('paid_at')->nullable();
             $table->timestamps();
 

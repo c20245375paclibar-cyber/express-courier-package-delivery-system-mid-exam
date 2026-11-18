@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use App\Enums\DeliveryType;
 
 return new class extends Migration
 {
@@ -15,7 +16,7 @@ return new class extends Migration
             $table->foreignId('recipient_customer_id')->constrained('customers')->restrictOnDelete();
             $table->foreignId('current_hub_id')->nullable()->constrained('transit_hubs')->nullOnDelete();
             $table->decimal('parcel_weight_kg', 8, 3);
-            $table->string('delivery_type', 20);
+            $table->enum('delivery_type', array_column(DeliveryType::cases(), 'value'));
             $table->decimal('shipping_cost', 10, 2);
             $table->timestamps();
 
