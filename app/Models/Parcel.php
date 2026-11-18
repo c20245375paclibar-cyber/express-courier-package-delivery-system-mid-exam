@@ -50,4 +50,9 @@ class Parcel extends Model
     {
         return $this->hasMany(CourierPayment::class);
     }
+
+    public function dispatchRequests(): HasMany
+    {
+        return $this->hasMany(CourierDispatchRequest::class);
+    }
 }

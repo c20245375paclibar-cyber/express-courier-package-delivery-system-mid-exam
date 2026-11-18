@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CourierPaymentController;
+use App\Http\Controllers\CourierDispatchRequestController;
 use App\Http\Controllers\ParcelController;
 use App\Http\Controllers\ShipmentStatusLogController;
 use App\Http\Controllers\CustomerController;
@@ -19,6 +20,7 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('customers', CustomerController::class);
     Route::resource('transit-hubs', TransitHubController::class);
     Route::resource('courier-payments', CourierPaymentController::class);
+    Route::resource('dispatch-requests', CourierDispatchRequestController::class)->except(['show']);
 });
 
 require __DIR__.'/settings.php';

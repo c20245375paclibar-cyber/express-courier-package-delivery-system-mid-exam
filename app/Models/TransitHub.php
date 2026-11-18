@@ -18,4 +18,9 @@ class TransitHub extends Model
     {
         return $this->hasMany(ShipmentStatusLog::class);
     }
+
+    public function dispatchRequests(): HasMany
+    {
+        return $this->hasMany(CourierDispatchRequest::class, 'assigned_hub_id');
+    }
 }
