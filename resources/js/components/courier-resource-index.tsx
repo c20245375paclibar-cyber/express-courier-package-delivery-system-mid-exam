@@ -152,7 +152,6 @@ export default function CourierResourceIndex({
                                                             variant="outline"
                                                             size="sm"
                                                             onClick={() => {
-                                                                const action = archivable ? 'Archive' : 'Delete';
                                                                 const message = archivable
                                                                     ? `Archive this ${resource.toLowerCase().replace(/s$/, '')}? You can restore it later.`
                                                                     : `Delete this ${resource.toLowerCase().replace(/s$/, '')}? This action cannot be undone.`;
