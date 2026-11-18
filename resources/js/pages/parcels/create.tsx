@@ -84,9 +84,7 @@ export default function CreateParcel({
             delivery_type: formData.delivery_type,
             current_hub_name: formData.current_hub_name.trim(),
             initial_status: formData.initial_status,
-            status_occurred_at: formData.status_date
-                ? `${formData.status_date}T${formData.status_time || '00:00'}`
-                : '',
+            status_occurred_at: formData.status_date ? `${formData.status_date}T${formData.status_time || '00:00'}` : '',
         }));
         post(route('parcels.store'));
     };
@@ -103,116 +101,234 @@ export default function CreateParcel({
                     </Button>
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">Create a parcel</h1>
-                        <p className="text-sm text-muted-foreground">Add the shipment details and its first tracking event.</p>
+                        <p className="text-muted-foreground text-sm">Add the shipment details and its first tracking event.</p>
                     </div>
                 </div>
 
-                <form onSubmit={submit} className="space-y-6 rounded-xl border bg-card p-5 shadow-sm md:p-7">
-                    <section className="grid gap-4 sm:grid-cols-2">
-                        <div className="grid gap-2 sm:col-span-2">
-                            <Label htmlFor="tracking_number">Tracking number</Label>
-                            <Input
-                                id="tracking_number"
-                                required
-                                value={data.tracking_number}
-                                onChange={(event) => setData('tracking_number', event.target.value)}
-                                placeholder="e.g. CXP-2026-001"
-                            />
-                            <InputError message={errors.tracking_number} />
+                <ol
+                    aria-label="Parcel creation steps"
+                    className="bg-muted/30 flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <li className="order-first flex flex-1 items-center gap-3">
+                        <span className="bg-primary text-primary-foreground grid size-9 shrink-0 place-items-center rounded-full text-sm font-semibold">
+                            01
+                        </span>
+                        <span>
+                            <span className="block text-sm font-medium">Parcel &amp; people</span>
+                            <span className="text-muted-foreground block text-xs">Tracking and contact details</span>
+                        </span>
+                    </li>
+                    <li className="order-2 flex flex-1 items-center gap-3">
+                        <span className="bg-background grid size-9 shrink-0 place-items-center rounded-full border text-sm font-semibold">02</span>
+                        <span>
+                            <span className="block text-sm font-medium">Delivery</span>
+                            <span className="text-muted-foreground block text-xs">Weight, speed and hub</span>
+                        </span>
+                    </li>
+                    <li className="order-last flex flex-1 items-center gap-3">
+                        <span className="bg-background grid size-9 shrink-0 place-items-center rounded-full border text-sm font-semibold">03</span>
+                        <span>
+                            <span className="block text-sm font-medium">First update</span>
+                            <span className="text-muted-foreground block text-xs">Status and received time</span>
+                        </span>
+                    </li>
+                </ol>
+
+                <form onSubmit={submit} className="bg-card space-y-6 rounded-xl border p-5 shadow-sm md:p-7">
+                    <section className="space-y-4">
+                        <div className="flex items-center gap-3">
+                            <span className="bg-primary/10 text-primary grid size-8 place-items-center rounded-lg text-xs font-semibold">01</span>
+                            <div>
+                                <h2 className="text-sm font-semibold">Parcel and contact details</h2>
+                                <p className="text-muted-foreground text-xs">Who is sending this parcel, and where is it going?</p>
+                            </div>
                         </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="sender_name">Sender name</Label>
-                            <Input id="sender_name" required value={data.sender_name} onChange={(event) => setData('sender_name', event.target.value)} />
-                            <InputError message={errors.sender_name} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="recipient_name">Recipient name</Label>
-                            <Input id="recipient_name" required value={data.recipient_name} onChange={(event) => setData('recipient_name', event.target.value)} />
-                            <InputError message={errors.recipient_name} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="sender_address">Sender address</Label>
-                            <Input id="sender_address" required value={data.sender_address} onChange={(event) => setData('sender_address', event.target.value)} placeholder="Street, city, region" />
-                            <InputError message={errors.sender_address} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="recipient_address">Recipient address</Label>
-                            <Input id="recipient_address" required value={data.recipient_address} onChange={(event) => setData('recipient_address', event.target.value)} placeholder="Street, city, region" />
-                            <InputError message={errors.recipient_address} />
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-2 sm:col-span-2">
+                                <Label htmlFor="tracking_number">Tracking number</Label>
+                                <Input
+                                    id="tracking_number"
+                                    required
+                                    value={data.tracking_number}
+                                    onChange={(event) => setData('tracking_number', event.target.value)}
+                                    placeholder="e.g. CXP-2026-001"
+                                />
+                                <InputError message={errors.tracking_number} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="sender_name">Sender name</Label>
+                                <Input
+                                    id="sender_name"
+                                    required
+                                    value={data.sender_name}
+                                    onChange={(event) => setData('sender_name', event.target.value)}
+                                />
+                                <InputError message={errors.sender_name} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="recipient_name">Recipient name</Label>
+                                <Input
+                                    id="recipient_name"
+                                    required
+                                    value={data.recipient_name}
+                                    onChange={(event) => setData('recipient_name', event.target.value)}
+                                />
+                                <InputError message={errors.recipient_name} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="sender_address">Sender address</Label>
+                                <Input
+                                    id="sender_address"
+                                    required
+                                    value={data.sender_address}
+                                    onChange={(event) => setData('sender_address', event.target.value)}
+                                    placeholder="Street, city, region"
+                                />
+                                <InputError message={errors.sender_address} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="recipient_address">Recipient address</Label>
+                                <Input
+                                    id="recipient_address"
+                                    required
+                                    value={data.recipient_address}
+                                    onChange={(event) => setData('recipient_address', event.target.value)}
+                                    placeholder="Street, city, region"
+                                />
+                                <InputError message={errors.recipient_address} />
+                            </div>
                         </div>
                     </section>
 
-                    <section className="grid gap-4 border-t pt-6 sm:grid-cols-2">
-                        <div className="grid gap-2">
-                            <Label htmlFor="parcel_weight_kg">Weight (kg)</Label>
-                            <Input id="parcel_weight_kg" type="number" min="0.001" step="0.001" required value={data.parcel_weight_kg} onChange={(event) => setData('parcel_weight_kg', event.target.value)} placeholder="1.250" />
-                            <InputError message={errors.parcel_weight_kg} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="delivery_type">Delivery speed</Label>
-                            <select id="delivery_type" className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={data.delivery_type} onChange={(event) => setData('delivery_type', event.target.value)}>
-                                {deliveryTypes.map((type) => (
-                                    <option key={type} value={type}>{type === 'standard' ? 'Standard (base rate)' : `${type[0].toUpperCase()}${type.slice(1)} (${type === 'express' ? '1.5' : '2.5'}× rate)`}</option>
-                                ))}
-                            </select>
-                            <InputError message={errors.delivery_type} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="current_hub_name">Current transit hub</Label>
-                            <Input id="current_hub_name" value={data.current_hub_name} onChange={(event) => setData('current_hub_name', event.target.value)} placeholder="Optional" />
-                            <InputError message={errors.current_hub_name} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="initial_status">Initial shipment status</Label>
-                            <select id="initial_status" className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={data.initial_status} onChange={(event) => setData('initial_status', event.target.value)}>
-                                {shipmentStatuses.map((status) => (
-                                    <option key={status} value={status}>{status.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())}</option>
-                                ))}
-                            </select>
-                            <InputError message={errors.initial_status} />
-                        </div>
-                        <div className="grid gap-2 sm:col-span-2">
-                            <Label htmlFor="status_occurred_at">Status date and time (optional)</Label>
-                            <div className="flex flex-wrap gap-2">
-                                <Button type="button" variant="outline" size="sm" onClick={() => setData('status_date', dateAfter(0))}>
-                                    Today
-                                </Button>
-                                <Button type="button" variant="outline" size="sm" onClick={() => setData('status_date', dateAfter(1))}>
-                                    Tomorrow
-                                </Button>
-                                <Button type="button" variant="outline" size="sm" onClick={() => setData('status_date', dateAfter(7))}>
-                                    Next week
-                                </Button>
+                    <section className="space-y-4 border-t pt-6">
+                        <div className="flex items-center gap-3">
+                            <span className="bg-muted grid size-8 place-items-center rounded-lg text-xs font-semibold">02</span>
+                            <div>
+                                <h2 className="text-sm font-semibold">Delivery details</h2>
+                                <p className="text-muted-foreground text-xs">Choose the service speed and enter the parcel weight.</p>
                             </div>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <div className="grid gap-1">
-                                    <Label htmlFor="status_date" className="text-xs text-muted-foreground">Date</Label>
-                                    <Input
-                                        id="status_date"
-                                        type="date"
-                                        min={localDateValue()}
-                                        step="1"
-                                        value={data.status_date}
-                                        onChange={(event) => setData('status_date', event.target.value)}
-                                        onClick={openNativePicker}
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label htmlFor="status_time" className="text-xs text-muted-foreground">Time</Label>
-                                    <Input
-                                        id="status_time"
-                                        type="time"
-                                        step="60"
-                                        value={data.status_time}
-                                        onChange={(event) => setData('status_time', event.target.value)}
-                                    />
-                                </div>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="parcel_weight_kg">Weight (kg)</Label>
+                                <Input
+                                    id="parcel_weight_kg"
+                                    type="number"
+                                    min="0.001"
+                                    step="0.001"
+                                    required
+                                    value={data.parcel_weight_kg}
+                                    onChange={(event) => setData('parcel_weight_kg', event.target.value)}
+                                    placeholder="1.250"
+                                />
+                                <InputError message={errors.parcel_weight_kg} />
                             </div>
-                            <InputError message={errors.status_occurred_at} />
+                            <div className="grid gap-2">
+                                <Label htmlFor="delivery_type">Delivery speed</Label>
+                                <select
+                                    id="delivery_type"
+                                    className="border-input bg-background h-10 rounded-md border px-3 text-sm"
+                                    value={data.delivery_type}
+                                    onChange={(event) => setData('delivery_type', event.target.value)}
+                                >
+                                    {deliveryTypes.map((type) => (
+                                        <option key={type} value={type}>
+                                            {type === 'standard'
+                                                ? 'Standard (base rate)'
+                                                : `${type[0].toUpperCase()}${type.slice(1)} (${type === 'express' ? '1.5' : '2.5'}× rate)`}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.delivery_type} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="current_hub_name">Current transit hub</Label>
+                                <Input
+                                    id="current_hub_name"
+                                    value={data.current_hub_name}
+                                    onChange={(event) => setData('current_hub_name', event.target.value)}
+                                    placeholder="Optional"
+                                />
+                                <InputError message={errors.current_hub_name} />
+                            </div>
                         </div>
                     </section>
 
-                    <p className="text-sm text-muted-foreground">Shipping is calculated automatically: weight × $5/kg × delivery speed. A pending payment and the first status log are created with the parcel.</p>
+                    <section className="space-y-4 border-t pt-6">
+                        <div className="flex items-center gap-3">
+                            <span className="bg-muted grid size-8 place-items-center rounded-lg text-xs font-semibold">03</span>
+                            <div>
+                                <h2 className="text-sm font-semibold">First tracking update</h2>
+                                <p className="text-muted-foreground text-xs">Set the parcel’s starting status and when it was received.</p>
+                            </div>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="initial_status">Initial shipment status</Label>
+                                <select
+                                    id="initial_status"
+                                    className="border-input bg-background h-10 rounded-md border px-3 text-sm"
+                                    value={data.initial_status}
+                                    onChange={(event) => setData('initial_status', event.target.value)}
+                                >
+                                    {shipmentStatuses.map((status) => (
+                                        <option key={status} value={status}>
+                                            {status.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.initial_status} />
+                            </div>
+                            <div className="grid gap-2 sm:col-span-2">
+                                <Label htmlFor="status_occurred_at">Status date and time (optional)</Label>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setData('status_date', dateAfter(0))}>
+                                        Today
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setData('status_date', dateAfter(1))}>
+                                        Tomorrow
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setData('status_date', dateAfter(7))}>
+                                        Next week
+                                    </Button>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="grid gap-1">
+                                        <Label htmlFor="status_date" className="text-muted-foreground text-xs">
+                                            Date
+                                        </Label>
+                                        <Input
+                                            id="status_date"
+                                            type="date"
+                                            min={localDateValue()}
+                                            step="1"
+                                            value={data.status_date}
+                                            onChange={(event) => setData('status_date', event.target.value)}
+                                            onClick={openNativePicker}
+                                        />
+                                    </div>
+                                    <div className="grid gap-1">
+                                        <Label htmlFor="status_time" className="text-muted-foreground text-xs">
+                                            Time
+                                        </Label>
+                                        <Input
+                                            id="status_time"
+                                            type="time"
+                                            step="60"
+                                            value={data.status_time}
+                                            onChange={(event) => setData('status_time', event.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <InputError message={errors.status_occurred_at} />
+                            </div>
+                        </div>
+                    </section>
+
+                    <p className="text-muted-foreground text-sm">
+                        Shipping is calculated automatically: weight × $5/kg × delivery speed. A pending payment and the first status log are created
+                        with the parcel.
+                    </p>
                     <div className="flex justify-end gap-3">
                         <Button variant="outline" type="button" asChild>
                             <Link href={route('parcels.index')}>Cancel</Link>
