@@ -55,7 +55,9 @@ export default function CreateShipmentStatusLog({ parcels }: { parcels: ParcelOp
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
         transform((formData) => ({
-            ...formData,
+            parcel_id: formData.parcel_id,
+            status: formData.status,
+            current_hub_name: formData.current_hub_name.trim(),
             occurred_at: formData.occurred_date
                 ? `${formData.occurred_date}T${formData.occurred_time || '00:00'}`
                 : '',

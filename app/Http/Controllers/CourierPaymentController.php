@@ -2,63 +2,58 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CourierService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CourierPaymentController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function __construct(private readonly CourierService $courierService) {}
+
+    public function index(): JsonResponse
     {
-        //
+        return response()->json($this->courierService->paginatePayments());
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function store(Request $request): JsonResponse
     {
-        //
+        $data = $request->validate([
+            'parcel_id' => ['required', 'integer', 'exists:parcels,id'],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
+            'payment_status' => ['required', 'string', Rule::in(['pending', 'paid'])],
+            'payment_method' => ['nullable', 'string', 'max:30'],
+            'paid_at' => ['nullable', 'date'],
+        ]);
+
+        return response()->json($this->courierService->createPayment($data), 201);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function show(int $courierPayment): JsonResponse
     {
-        //
+        return response()->json($this->courierService->findPayment($courierPayment));
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function update(Request $request, int $courierPayment): JsonResponse
     {
-        //
+        $data = $request->validate([
+            'parcel_id' => ['required', 'integer', 'exists:parcels,id'],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
+            'payment_status' => ['required', 'string', Rule::in(['pending', 'paid'])],
+            'payment_method' => ['nullable', 'string', 'max:30'],
+            'paid_at' => ['nullable', 'date'],
+        ]);
+
+        $payment = $this->courierService->findPayment($courierPayment);
+
+        return response()->json($this->courierService->updatePayment($payment, $data));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function destroy(int $courierPayment): JsonResponse
     {
-        //
-    }
+        $payment = $this->courierService->findPayment($courierPayment);
+        $this->courierService->deletePayment($payment);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        return response()->json(status: 204);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\CourierPayment;
 use App\Models\Parcel;
 use App\Models\ShipmentStatusLog;
 use App\Models\TransitHub;
@@ -13,9 +14,9 @@ use Illuminate\Validation\ValidationException;
 
 class CourierService
 {
-    public const DELIVERY_TYPES = ['standard', 'express', 'overnight'];
+    public const DELIVERY_TYPES = ['standard', 'express', 'overnight']; // convert to enum
 
-    public const SHIPMENT_STATUSES = ['received', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'exception'];
+    public const SHIPMENT_STATUSES = ['received', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'exception']; // convert to enum
 
     private const BASE_RATE_PER_KG = 5.00;
 
@@ -27,10 +28,14 @@ class CourierService
 
     public function sanitizeParcelInput(array $data): array
     {
-        foreach (['tracking_number', 'sender_name', 'recipient_name', 'current_hub_name', 'initial_status'] as $field) {
+        foreach (['tracking_number', 'sender_name', 'recipient_name', 'current_hub_name', 'initial_status', 'status_occurred_at'] as $field) {
             if (array_key_exists($field, $data)) {
                 $data[$field] = $this->cleanText($data[$field]);
             }
+        }
+
+        if (array_key_exists('current_hub_name', $data) && $data['current_hub_name'] === '') {
+            $data['current_hub_name'] = null;
         }
 
         foreach (['sender_address', 'recipient_address'] as $field) {
@@ -60,10 +65,14 @@ class CourierService
 
     public function sanitizeStatusLogInput(array $data): array
     {
-        foreach (['current_hub_name', 'status'] as $field) {
+        foreach (['current_hub_name', 'status', 'occurred_at'] as $field) {
             if (array_key_exists($field, $data)) {
                 $data[$field] = $this->cleanText($data[$field]);
             }
+        }
+
+        if (array_key_exists('current_hub_name', $data) && $data['current_hub_name'] === '') {
+            $data['current_hub_name'] = null;
         }
 
         if (array_key_exists('status', $data)) {
@@ -71,6 +80,28 @@ class CourierService
         }
 
         return $data;
+    }
+
+    public static function isPlausibleName(mixed $value): bool
+    {
+        return is_string($value)
+            && preg_match('/^[\p{L}\p{M}]+(?:[ .\'’-][\p{L}\p{M}]+)*$/u', $value) === 1
+            && preg_match('/[bcdfghjklmnpqrstvwxz]{5,}/i', $value) !== 1;
+    }
+
+    public static function isPlausibleAddress(mixed $value): bool
+    {
+        return is_string($value)
+            && preg_match('/[\p{L}]/u', $value) === 1
+            && preg_match('/^[\p{L}\p{M}\d\s#.,\'’\/()\-]+$/u', $value) === 1
+            && preg_match('/[bcdfghjklmnpqrstvwxz]{5,}/i', $value) !== 1;
+    }
+
+    public static function isPlausibleHubName(mixed $value): bool
+    {
+        return is_string($value)
+            && preg_match('/^[\p{L}\p{M}\d]+(?:[ .\'’-][\p{L}\p{M}\d]+)*$/u', $value) === 1
+            && preg_match('/[bcdfghjklmnpqrstvwxz]{5,}/i', $value) !== 1;
     }
 
     public function normalizeSearch(mixed $search): ?string
@@ -160,6 +191,41 @@ class CourierService
     public function findStatusLog(int $id): ShipmentStatusLog
     {
         return ShipmentStatusLog::query()->findOrFail($id);
+    }
+
+    public function paginatePayments(): LengthAwarePaginator
+    {
+        return CourierPayment::query()
+            ->with(['parcel.sender', 'parcel.recipient'])
+            ->latest()
+            ->paginate(15);
+    }
+
+    public function findPayment(int $id): CourierPayment
+    {
+        return CourierPayment::query()
+            ->with(['parcel.sender', 'parcel.recipient'])
+            ->findOrFail($id);
+    }
+
+    public function createPayment(array $data): CourierPayment
+    {
+        $data['paid_at'] = $data['payment_status'] === 'paid' ? ($data['paid_at'] ?? now()) : null;
+
+        return CourierPayment::query()->create($data)->load(['parcel.sender', 'parcel.recipient']);
+    }
+
+    public function updatePayment(CourierPayment $payment, array $data): CourierPayment
+    {
+        $data['paid_at'] = $data['payment_status'] === 'paid' ? ($data['paid_at'] ?? $payment->paid_at ?? now()) : null;
+        $payment->update($data);
+
+        return $payment->refresh()->load(['parcel.sender', 'parcel.recipient']);
+    }
+
+    public function deletePayment(CourierPayment $payment): void
+    {
+        $payment->delete();
     }
 
     public function createParcel(array $data): Parcel

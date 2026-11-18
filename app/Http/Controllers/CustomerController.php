@@ -2,63 +2,64 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Customer;
+use App\Services\CustomerService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function __construct(private readonly CustomerService $customerService) {}
+
+    public function index(): JsonResponse
     {
-        //
+        return response()->json($this->customerService->paginate());
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function store(Request $request): JsonResponse
     {
-        //
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'address' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('customers')->where(fn ($query) => $query->where('name', $request->input('name'))),
+            ],
+        ]);
+
+        return response()->json($this->customerService->create($data), 201);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function show(int $customer): JsonResponse
     {
-        //
+        return response()->json($this->customerService->find($customer));
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function update(Request $request, int $customer): JsonResponse
     {
-        //
+        $model = Customer::query()->findOrFail($customer);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'address' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('customers')
+                    ->where(fn ($query) => $query->where('name', $request->input('name')))
+                    ->ignore($model->id),
+            ],
+        ]);
+
+        return response()->json($this->customerService->update($model, $data));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function destroy(int $customer): JsonResponse
     {
-        //
-    }
+        $model = Customer::query()->findOrFail($customer);
+        $this->customerService->delete($model);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        return response()->json(status: 204);
     }
 }

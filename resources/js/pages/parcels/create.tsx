@@ -67,7 +67,15 @@ export default function CreateParcel({ generated_tracking_number }: { generated_
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
         transform((formData) => ({
-            ...formData,
+            tracking_number: formData.tracking_number.trim(),
+            sender_name: formData.sender_name.trim(),
+            sender_address: formData.sender_address.trim(),
+            recipient_name: formData.recipient_name.trim(),
+            recipient_address: formData.recipient_address.trim(),
+            parcel_weight_kg: formData.parcel_weight_kg.trim(),
+            delivery_type: formData.delivery_type,
+            current_hub_name: formData.current_hub_name.trim(),
+            initial_status: formData.initial_status,
             status_occurred_at: formData.status_date
                 ? `${formData.status_date}T${formData.status_time || '00:00'}`
                 : '',

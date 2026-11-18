@@ -101,6 +101,47 @@ class CourierWorkflowTest extends TestCase
         $this->assertSame('37.50', $payment->fresh()->amount);
     }
 
+    public function test_courier_payment_endpoints_create_update_and_delete_payments(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $parcel = $this->makeParcel();
+
+        $this->postJson(route('courier-payments.store'), [
+            'parcel_id' => $parcel->id,
+            'amount' => 12.50,
+            'payment_status' => 'paid',
+            'payment_method' => 'cash',
+        ])->assertCreated()
+            ->assertJsonPath('payment_status', 'paid')
+            ->assertJsonPath('amount', '12.50');
+
+        $payment = CourierPayment::query()->firstOrFail();
+
+        $this->patchJson(route('courier-payments.update', $payment), [
+            'parcel_id' => $parcel->id,
+            'amount' => 15,
+            'payment_status' => 'pending',
+            'payment_method' => null,
+        ])->assertOk()
+            ->assertJsonPath('payment_status', 'pending')
+            ->assertJsonPath('paid_at', null);
+
+        $this->deleteJson(route('courier-payments.destroy', $payment))->assertNoContent();
+        $this->assertDatabaseMissing('courier_payments', ['id' => $payment->id]);
+    }
+
+    public function test_courier_payment_creation_rejects_invalid_parcels_and_statuses(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->postJson(route('courier-payments.store'), [
+            'parcel_id' => 999,
+            'amount' => 0,
+            'payment_status' => 'unknown',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['parcel_id', 'amount', 'payment_status']);
+    }
+
     public function test_status_log_update_preserves_sequence_and_updates_latest_hub(): void
     {
         $this->actingAs(User::factory()->create());
@@ -142,6 +183,86 @@ class CourierWorkflowTest extends TestCase
 
         $this->assertCount(1, $results->items());
         $this->assertSame($matchingParcel->id, $results->items()[0]->parcel->id);
+    }
+
+    public function test_required_text_fields_reject_whitespace_only_input(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->post(route('parcels.store'), [
+            'tracking_number' => 'CXP-WHITESPACE',
+            'sender_name' => '   ',
+            'sender_address' => '   ',
+            'recipient_name' => 'Recipient',
+            'recipient_address' => 'Address',
+            'parcel_weight_kg' => 1,
+            'delivery_type' => 'standard',
+            'initial_status' => 'received',
+        ])->assertSessionHasErrors(['sender_name', 'sender_address']);
+    }
+
+    public function test_parcel_creation_rejects_gibberish_contact_and_hub_input(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->post(route('parcels.store'), [
+            'tracking_number' => 'CXP-GIBBERISH',
+            'sender_name' => 'jdhfjksdhfjkshd543',
+            'sender_address' => 'dsahfjkasdhfkjashdf',
+            'recipient_name' => 'ajkdhjashdjas',
+            'recipient_address' => 'fsajkhdfjksadhfs',
+            'parcel_weight_kg' => 1,
+            'delivery_type' => 'standard',
+            'current_hub_name' => 'dasjghduasghdfuyas',
+            'initial_status' => 'received',
+        ])->assertSessionHasErrors([
+            'sender_name',
+            'sender_address',
+            'recipient_name',
+            'recipient_address',
+            'current_hub_name',
+        ]);
+    }
+
+    public function test_status_log_rejects_gibberish_optional_hub_name(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $parcel = $this->makeParcel();
+
+        $this->post(route('shipment-status-logs.store'), [
+            'parcel_id' => $parcel->id,
+            'status' => 'in_transit',
+            'current_hub_name' => 'dasjghduasghdfuyas',
+            'occurred_at' => now()->addDay()->toDateTimeString(),
+        ])->assertSessionHasErrors('current_hub_name');
+    }
+
+    public function test_blank_optional_hub_is_stored_as_null(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $parcel = $this->makeParcel();
+
+        $this->post(route('shipment-status-logs.store'), [
+            'parcel_id' => $parcel->id,
+            'status' => 'in_transit',
+            'current_hub_name' => '   ',
+            'occurred_at' => now()->addDay()->toDateTimeString(),
+        ])->assertRedirect(route('shipment-status-logs.index'));
+
+        $this->assertNull(ShipmentStatusLog::query()->where('parcel_id', $parcel->id)->orderByDesc('sequence')->firstOrFail()->transit_hub_id);
+    }
+
+    public function test_unrecognized_status_input_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $parcel = $this->makeParcel();
+
+        $this->post(route('shipment-status-logs.store'), [
+            'parcel_id' => $parcel->id,
+            'status' => 'in_transit',
+            'current_hub_name' => '',
+            'unexpected_field' => 'not allowed',
+        ])->assertSessionHasErrors('input');
     }
 
     private function makeParcel(array $attributes = []): Parcel

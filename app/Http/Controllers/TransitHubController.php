@@ -2,63 +2,50 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\TransitHub;
+use App\Services\TransitHubService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class TransitHubController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function __construct(private readonly TransitHubService $hubService) {}
+
+    public function index(): JsonResponse
     {
-        //
+        return response()->json($this->hubService->paginate());
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function store(Request $request): JsonResponse
     {
-        //
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('transit_hubs', 'name')],
+        ]);
+
+        return response()->json($this->hubService->create($data), 201);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function show(int $transitHub): JsonResponse
     {
-        //
+        return response()->json($this->hubService->find($transitHub));
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function update(Request $request, int $transitHub): JsonResponse
     {
-        //
+        $hub = TransitHub::query()->findOrFail($transitHub);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('transit_hubs', 'name')->ignore($hub->id)],
+        ]);
+
+        return response()->json($this->hubService->update($hub, $data));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function destroy(int $transitHub): JsonResponse
     {
-        //
-    }
+        $hub = TransitHub::query()->findOrFail($transitHub);
+        $this->hubService->delete($hub);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        return response()->json(status: 204);
     }
 }
