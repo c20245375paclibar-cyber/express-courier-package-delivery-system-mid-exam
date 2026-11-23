@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Enums\CourierDispatchStatus;
+use App\Services\CourierDispatchStatus;
 use App\Jobs\ProcessCourierDispatch;
 use App\Models\CourierDispatchRequest;
 use App\Models\Customer;

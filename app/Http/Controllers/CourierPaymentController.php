@@ -42,7 +42,7 @@ class CourierPaymentController extends Controller
         $payment = $this->paymentService->create($request->validated());
 
         if ($request->expectsJson()) {
-            return response()->json($payment->load(['parcel.sender', 'parcel.recipient']), 201);
+            return response()->json($payment->load(['parcel.sender', 'parcel.recipient']), 201); // get only the columns needed in ur FE
         }
 
         return to_route('courier-payments.index')->with('success', 'Payment created successfully.');
@@ -66,7 +66,7 @@ class CourierPaymentController extends Controller
         $payment = $this->paymentService->update($this->paymentService->find($courierPayment), $request->validated());
 
         if ($request->expectsJson()) {
-            return response()->json($payment->load(['parcel.sender', 'parcel.recipient']));
+            return response()->json($payment->load(['parcel.sender', 'parcel.recipient'])); // same
         }
 
         return to_route('courier-payments.index')->with('success', 'Payment updated successfully.');

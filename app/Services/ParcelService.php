@@ -2,30 +2,25 @@
 
 namespace App\Services;
 
-use App\Enums\DeliveryType;
-use App\Enums\ShipmentStatus;
 use App\Models\Parcel;
+use App\Services\ShipmentStatus;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+enum DeliveryType: string
+{
+    case Standard = 'standard';
+    case Express = 'express';
+    case Overnight = 'overnight';
+}
+
 class ParcelService
 {
-    public const DELIVERY_TYPES = [
-        DeliveryType::Standard->value,
-        DeliveryType::Express->value,
-        DeliveryType::Overnight->value,
-    ];
+    public const DELIVERY_TYPES = ['standard', 'express', 'overnight'];
 
-    public const SHIPMENT_STATUSES = [
-        ShipmentStatus::Received->value,
-        ShipmentStatus::PickedUp->value,
-        ShipmentStatus::InTransit->value,
-        ShipmentStatus::OutForDelivery->value,
-        ShipmentStatus::Delivered->value,
-        ShipmentStatus::Exception->value,
-    ];
+    public const SHIPMENT_STATUSES = ['received', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'exception'];
 
     private const BASE_RATE_PER_KG = 5.00;
 
@@ -119,8 +114,25 @@ class ParcelService
 
     public function paginate(?string $search = null, bool $archived = false): LengthAwarePaginator
     {
-        $query = Parcel::query()->when($archived, fn ($query) => $query->onlyTrashed())
-            ->with(['sender', 'recipient', 'currentHub', 'statusLogs'])->latest();
+        $query = Parcel::query()
+            ->select([
+                'id',
+                'tracking_number',
+                'sender_customer_id',
+                'recipient_customer_id',
+                'current_hub_id',
+                'parcel_weight_kg',
+                'delivery_type',
+                'shipping_cost',
+            ])
+            ->when($archived, fn ($query) => $query->onlyTrashed())
+            ->with([
+                'sender:id,name',
+                'recipient:id,name',
+                'currentHub:id,name',
+                'statusLogs:id,parcel_id,status',
+            ])
+            ->latest();
 
         if ($search !== null) {
             $query->where(function ($query) use ($search) {
@@ -138,7 +150,24 @@ class ParcelService
     public function find(int $id): Parcel
     {
         return Parcel::query()
-            ->with(['sender', 'recipient', 'currentHub', 'statusLogs.transitHub', 'payments'])
+            ->select([
+                'id',
+                'tracking_number',
+                'sender_customer_id',
+                'recipient_customer_id',
+                'current_hub_id',
+                'parcel_weight_kg',
+                'delivery_type',
+                'shipping_cost',
+            ])
+            ->with([
+                'sender:id,name,address',
+                'recipient:id,name,address',
+                'currentHub:id,name',
+                'statusLogs:id,parcel_id,transit_hub_id,sequence,status,occurred_at',
+                'statusLogs.transitHub:id,name',
+                'payments:id,parcel_id,amount,payment_status,payment_method,paid_at',
+            ])
             ->findOrFail($id);
     }
 

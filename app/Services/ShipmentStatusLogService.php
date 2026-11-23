@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\ShipmentStatus;
 use App\Models\Parcel;
 use App\Models\ShipmentStatusLog;
 use Carbon\Carbon;
@@ -10,16 +9,19 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+enum ShipmentStatus: string
+{
+    case Received = 'received';
+    case PickedUp = 'picked_up';
+    case InTransit = 'in_transit';
+    case OutForDelivery = 'out_for_delivery';
+    case Delivered = 'delivered';
+    case Exception = 'exception';
+}
+
 class ShipmentStatusLogService
 {
-    public const STATUSES = [
-        ShipmentStatus::Received->value,
-        ShipmentStatus::PickedUp->value,
-        ShipmentStatus::InTransit->value,
-        ShipmentStatus::OutForDelivery->value,
-        ShipmentStatus::Delivered->value,
-        ShipmentStatus::Exception->value,
-    ];
+    public const STATUSES = ['received', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'exception'];
 
     public function __construct(private readonly TransitHubService $transitHubService) {}
 
@@ -54,9 +56,10 @@ class ShipmentStatusLogService
     public function paginate(?string $search = null, bool $archived = false): LengthAwarePaginator
     {
         $query = ShipmentStatusLog::query()
+            ->select(['id', 'parcel_id', 'transit_hub_id', 'sequence', 'status', 'occurred_at'])
             ->when($archived, fn ($query) => $query->onlyTrashed())
             ->whereHas('parcel')
-            ->with(['parcel', 'transitHub'])
+            ->with(['parcel:id,tracking_number', 'transitHub:id,name'])
             ->latest('occurred_at');
 
         if ($search !== null) {
@@ -80,7 +83,10 @@ class ShipmentStatusLogService
 
     public function find(int $id): ShipmentStatusLog
     {
-        return ShipmentStatusLog::query()->with(['parcel', 'transitHub'])->findOrFail($id);
+        return ShipmentStatusLog::query()
+            ->select(['id', 'parcel_id', 'transit_hub_id', 'sequence', 'status', 'occurred_at'])
+            ->with(['parcel:id,tracking_number', 'transitHub:id,name'])
+            ->findOrFail($id);
     }
 
     public function create(array $data): ShipmentStatusLog

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\TransitHub;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class TransitHubService
 {
@@ -48,20 +49,31 @@ class TransitHubService
     public function find(int $id): TransitHub
     {
         return TransitHub::query()
-            ->with(['parcels.sender', 'parcels.recipient', 'statusLogs.parcel'])
+            ->with([
+                'parcels:id,tracking_number,sender_customer_id,recipient_customer_id,current_hub_id,parcel_weight_kg,delivery_type,shipping_cost',
+                'parcels.sender:id,name,address',
+                'parcels.recipient:id,name,address',
+                'statusLogs:id,parcel_id,transit_hub_id,sequence,status,occurred_at',
+                'statusLogs.parcel:id,tracking_number',
+            ])
             ->findOrFail($id);
     }
 
     public function create(array $data): TransitHub
     {
-        return TransitHub::query()->create($this->sanitizeInput($data));
+        return DB::transaction(function () use ($data): TransitHub {
+            return TransitHub::query()->create($this->sanitizeInput($data));
+        });
     }
 
     public function update(TransitHub $hub, array $data): TransitHub
     {
-        $hub->update($this->sanitizeInput($data));
+        return DB::transaction(function () use ($hub, $data): TransitHub {
+            $hub = TransitHub::query()->lockForUpdate()->findOrFail($hub->id);
+            $hub->update($this->sanitizeInput($data));
 
-        return $hub->refresh();
+            return $hub->refresh();
+        });
     }
 
     public function archive(TransitHub $hub): void
@@ -71,7 +83,10 @@ class TransitHubService
 
     public function restore(int $id): void
     {
-        TransitHub::query()->withTrashed()->findOrFail($id)->restore();
+        DB::transaction(function () use ($id): void {
+            $hub = TransitHub::query()->withTrashed()->lockForUpdate()->findOrFail($id);
+            $hub->restore();
+        });
     }
 
     public function findOrCreate(?string $name): ?TransitHub

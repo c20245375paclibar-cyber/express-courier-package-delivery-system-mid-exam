@@ -35,7 +35,7 @@ class ShipmentStatusLogController extends Controller
     {
         return Inertia::render('shipment-status-logs/edit', [
             ...$this->statusLogService->getFormOptions(),
-            'log' => $this->statusLogService->find($shipmentStatusLog)->load(['parcel', 'transitHub']),
+            'log' => $this->statusLogService->find($shipmentStatusLog),
         ]);
     }
 

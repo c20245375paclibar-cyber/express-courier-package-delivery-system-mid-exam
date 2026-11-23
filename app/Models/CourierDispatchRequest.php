@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\CourierDispatchStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,7 +15,7 @@ class CourierDispatchRequest extends Model
     protected function casts(): array
     {
         return [
-            'status' => CourierDispatchStatus::class,
+            'status' => 'string',
             'queued_at' => 'datetime',
             'processed_at' => 'datetime',
         ];

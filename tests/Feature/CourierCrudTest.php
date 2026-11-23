@@ -58,6 +58,21 @@ class CourierCrudTest extends TestCase
         $this->assertSame('Sender', $parcel->fresh()->sender->name);
     }
 
+    public function test_customer_details_include_parcels_with_only_required_related_fields(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $parcel = $this->makeParcel();
+        $hub = TransitHub::query()->create(['name' => 'North Hub']);
+        $parcel->update(['current_hub_id' => $hub->id]);
+
+        $this->getJson(route('customers.show', $parcel->sender_customer_id))
+            ->assertOk()
+            ->assertJsonPath('sent_parcels.0.tracking_number', $parcel->tracking_number)
+            ->assertJsonPath('sent_parcels.0.recipient.name', 'Recipient')
+            ->assertJsonPath('sent_parcels.0.current_hub.name', 'North Hub')
+            ->assertJsonMissingPath('sent_parcels.0.created_at');
+    }
+
     public function test_transit_hub_crud_updates_normalized_name_and_can_archive_and_restore(): void
     {
         $this->actingAs(User::factory()->create());
@@ -78,6 +93,27 @@ class CourierCrudTest extends TestCase
         $this->post(route('transit-hubs.restore', $hub->id))
             ->assertRedirect(route('transit-hubs.index'));
         $this->assertNotSoftDeleted('transit_hubs', ['id' => $hub->id]);
+    }
+
+    public function test_transit_hub_details_include_optimized_parcel_and_status_log_relations(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $hub = TransitHub::query()->create(['name' => 'North Hub']);
+        $parcel = $this->makeParcel();
+        $parcel->update(['current_hub_id' => $hub->id]);
+        $parcel->statusLogs()->create([
+            'transit_hub_id' => $hub->id,
+            'sequence' => 1,
+            'status' => 'received',
+            'occurred_at' => now(),
+        ]);
+
+        $this->getJson(route('transit-hubs.show', $hub))
+            ->assertOk()
+            ->assertJsonPath('parcels.0.tracking_number', $parcel->tracking_number)
+            ->assertJsonPath('parcels.0.sender.name', 'Sender')
+            ->assertJsonPath('parcels.0.recipient.name', 'Recipient')
+            ->assertJsonPath('status_logs.0.parcel.tracking_number', $parcel->tracking_number);
     }
 
     public function test_payment_crud_normalizes_enums_and_manages_paid_timestamp(): void

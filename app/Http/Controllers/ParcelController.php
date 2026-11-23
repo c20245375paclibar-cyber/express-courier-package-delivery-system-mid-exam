@@ -38,7 +38,7 @@ class ParcelController extends Controller
     public function edit(int $parcel): Response
     {
         return Inertia::render('parcels/edit', [
-            'parcel' => $this->parcelService->find($parcel)->load(['sender', 'recipient', 'currentHub']),
+            'parcel' => $this->parcelService->find($parcel),
             'deliveryTypes' => ParcelService::DELIVERY_TYPES,
         ]);
     }

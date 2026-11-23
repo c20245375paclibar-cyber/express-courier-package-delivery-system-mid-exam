@@ -2,16 +2,33 @@
 
 namespace App\Services;
 
-use App\Enums\CourierDispatchStatus;
-use App\Enums\ShipmentStatus;
 use App\Jobs\ProcessCourierDispatch;
 use App\Models\CourierDispatchRequest;
 use App\Models\Parcel;
 use App\Models\TransitHub;
+use App\Services\ShipmentStatus;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+
+final class CourierDispatchStatus
+{
+    public const Pending = 'pending';
+    public const Processing = 'processing';
+    public const Assigned = 'assigned';
+    public const Failed = 'failed';
+
+    public static function cases(): array
+    {
+        return [
+            ['value' => self::Pending],
+            ['value' => self::Processing],
+            ['value' => self::Assigned],
+            ['value' => self::Failed],
+        ];
+    }
+}
 
 class CourierDispatchService
 {
@@ -37,7 +54,7 @@ class CourierDispatchService
 
     public function paginate(?string $search = null, bool $archived = false): LengthAwarePaginator
     {
-        return CourierDispatchRequest::query()
+        return CourierDispatchRequest::query() // this is CORRECT
             ->when($archived, fn ($query) => $query->onlyTrashed())
             ->with(['parcel:id,tracking_number', 'assignedHub:id,name'])
             ->when($search, fn ($query) => $query->where(function ($query) use ($search) {
@@ -53,30 +70,41 @@ class CourierDispatchService
     public function getFormOptions(): array
     {
         return [
-            'parcels' => Parcel::query()->with(['sender:id,name', 'recipient:id,name'])->orderBy('tracking_number')
+            'parcels' => Parcel::query()->with(['sender:id,name', 'recipient:id,name'])->orderBy('tracking_number') //  this is CORRECT
                 ->get(['id', 'tracking_number', 'sender_customer_id', 'recipient_customer_id']),
         ];
     }
 
     public function find(int $id): CourierDispatchRequest
     {
-        return CourierDispatchRequest::query()->with(['parcel.sender', 'parcel.recipient', 'assignedHub'])->findOrFail($id);
+        return CourierDispatchRequest::query()
+            ->select(['id', 'parcel_id', 'assigned_hub_id', 'status', 'queued_at', 'processed_at', 'failure_reason'])
+            ->with([
+                'parcel:id,tracking_number,sender_customer_id,recipient_customer_id',
+                'parcel.sender:id,name',
+                'parcel.recipient:id,name',
+                'assignedHub:id,name',
+            ])
+            ->findOrFail($id);
     }
 
     public function create(array $data): CourierDispatchRequest
     {
         $data = $this->sanitizeInput($data);
-        $this->assertDispatchable((int) $data['parcel_id']);
 
-        $request = CourierDispatchRequest::query()->create([
-            'parcel_id' => $data['parcel_id'],
-            'status' => CourierDispatchStatus::Pending,
-            'queued_at' => now(),
-        ]);
+        return DB::transaction(function () use ($data): CourierDispatchRequest {
+            $this->assertDispatchable((int) $data['parcel_id']);
 
-        $this->queue($request);
+            $request = CourierDispatchRequest::query()->create([
+                'parcel_id' => $data['parcel_id'],
+                'status' => CourierDispatchStatus::Pending,
+                'queued_at' => now(),
+            ]);
 
-        return $request->refresh();
+            $this->queue($request);
+
+            return $request->refresh();
+        });
     }
 
     public function update(CourierDispatchRequest $request, array $data): CourierDispatchRequest

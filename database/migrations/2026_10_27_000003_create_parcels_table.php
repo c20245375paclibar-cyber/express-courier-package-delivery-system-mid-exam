@@ -3,7 +3,9 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Enums\DeliveryType;
+use App\Services\DeliveryType;
+
+require_once app_path('Services/ParcelService.php');
 
 return new class extends Migration
 {

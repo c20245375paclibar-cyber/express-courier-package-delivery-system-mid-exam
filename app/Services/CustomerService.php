@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class CustomerService
 {
@@ -56,20 +57,32 @@ class CustomerService
     public function find(int $id): Customer
     {
         return Customer::query()
-            ->with(['sentParcels.recipient', 'sentParcels.currentHub', 'receivedParcels.sender', 'receivedParcels.currentHub'])
+            ->with([
+                'sentParcels:id,tracking_number,sender_customer_id,recipient_customer_id,current_hub_id,parcel_weight_kg,delivery_type,shipping_cost',
+                'sentParcels.recipient:id,name,address',
+                'sentParcels.currentHub:id,name',
+                'receivedParcels:id,tracking_number,sender_customer_id,recipient_customer_id,current_hub_id,parcel_weight_kg,delivery_type,shipping_cost',
+                'receivedParcels.sender:id,name,address',
+                'receivedParcels.currentHub:id,name',
+            ])
             ->findOrFail($id);
     }
 
     public function create(array $data): Customer
     {
-        return Customer::query()->create($this->sanitizeInput($data));
+        return DB::transaction(function () use ($data): Customer {
+            return Customer::query()->create($this->sanitizeInput($data));
+        });
     }
 
     public function update(Customer $customer, array $data): Customer
     {
-        $customer->update($this->sanitizeInput($data));
+        return DB::transaction(function () use ($customer, $data): Customer {
+            $customer = Customer::query()->lockForUpdate()->findOrFail($customer->id);
+            $customer->update($this->sanitizeInput($data));
 
-        return $customer->refresh();
+            return $customer->refresh();
+        });
     }
 
     public function archive(Customer $customer): void

@@ -1,10 +1,12 @@
 <?php
 
-use App\Enums\CourierDispatchStatus;
+use App\Services\CourierDispatchStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+
+require_once app_path('Services/CourierDispatchService.php');
 
 return new class extends Migration
 {
@@ -14,7 +16,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('parcel_id')->constrained()->cascadeOnDelete();
             $table->foreignId('assigned_hub_id')->nullable()->constrained('transit_hubs')->nullOnDelete();
-            $table->enum('status', array_column(CourierDispatchStatus::cases(), 'value'))->default(CourierDispatchStatus::Pending->value);
+            $table->enum('status', array_column(CourierDispatchStatus::cases(), 'value'))->default(CourierDispatchStatus::Pending);
             $table->timestamp('queued_at');
             $table->timestamp('processed_at')->nullable();
             $table->text('failure_reason')->nullable();
