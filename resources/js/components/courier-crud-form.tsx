@@ -60,7 +60,9 @@ export default function CourierCrudForm({
                                     value={form.data[field.name] ?? ''}
                                     onChange={(event) => form.setData(field.name, event.target.value)}
                                 >
-                                    {!field.required && <option value="">None</option>}
+                                    <option value="" disabled={field.required}>
+                                        {field.required ? `Select ${field.label.toLowerCase()}` : 'None'}
+                                    </option>
                                     {field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                                 </select>
                             ) : (

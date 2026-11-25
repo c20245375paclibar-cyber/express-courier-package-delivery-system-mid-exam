@@ -5,8 +5,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use App\Services\ShipmentStatus;
 
-require_once app_path('Services/ShipmentStatusLogService.php');
-
 return new class extends Migration
 {
     public function up(): void

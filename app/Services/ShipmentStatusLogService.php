@@ -9,16 +9,6 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-enum ShipmentStatus: string
-{
-    case Received = 'received';
-    case PickedUp = 'picked_up';
-    case InTransit = 'in_transit';
-    case OutForDelivery = 'out_for_delivery';
-    case Delivered = 'delivered';
-    case Exception = 'exception';
-}
-
 class ShipmentStatusLogService
 {
     public const STATUSES = ['received', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'exception'];
