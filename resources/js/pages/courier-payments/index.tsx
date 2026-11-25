@@ -1,4 +1,5 @@
 import CourierResourceIndex, { ResourceRow } from '@/components/courier-resource-index';
+import { formatPeso } from '@/lib/utils';
 
 interface Payment {
     id: number;
@@ -24,7 +25,7 @@ export default function CourierPaymentsIndex({ payments, search, archived }: { p
             id: payment.id,
             values: [
                 payment.parcel.tracking_number,
-                `$${Number(payment.amount).toFixed(2)}`,
+                formatPeso(payment.amount),
                 payment.payment_status.replaceAll('_', ' '),
                 payment.payment_method?.replaceAll('_', ' ') ?? '',
                 payment.paid_at ? new Date(payment.paid_at).toLocaleString() : '',
@@ -43,6 +44,7 @@ export default function CourierPaymentsIndex({ payments, search, archived }: { p
             resource="Courier payments"
             indexUrl={route('courier-payments.index')}
             createUrl={route('courier-payments.create')}
+            viewUrl={(id) => route('courier-payments.show', id)}
             editUrl={(id) => route('courier-payments.edit', id)}
             deleteUrl={(id) => route('courier-payments.destroy', id)}
             restoreUrl={(id) => route('courier-payments.restore', id)}

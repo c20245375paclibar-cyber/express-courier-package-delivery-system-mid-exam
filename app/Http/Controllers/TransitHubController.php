@@ -48,9 +48,15 @@ class TransitHubController extends Controller
         return to_route('transit-hubs.index')->with('success', 'Transit hub created successfully.');
     }
 
-    public function show(int $transitHub): JsonResponse
+    public function show(Request $request, int $transitHub): Response|JsonResponse
     {
-        return response()->json($this->transitHubService->find($transitHub));
+        $hub = $this->transitHubService->find($transitHub);
+
+        if ($request->expectsJson()) {
+            return response()->json($hub);
+        }
+
+        return Inertia::render('transit-hubs/show', ['hub' => $hub]);
     }
 
     public function edit(int $transitHub): Response

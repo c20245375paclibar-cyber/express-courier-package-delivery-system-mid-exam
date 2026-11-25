@@ -31,6 +31,13 @@ class ShipmentStatusLogController extends Controller
         return Inertia::render('shipment-status-logs/create', $this->statusLogService->getFormOptions());
     }
 
+    public function show(int $shipmentStatusLog): Response
+    {
+        return Inertia::render('shipment-status-logs/show', [
+            'log' => $this->statusLogService->find($shipmentStatusLog),
+        ]);
+    }
+
     public function edit(int $shipmentStatusLog): Response
     {
         return Inertia::render('shipment-status-logs/edit', [

@@ -36,6 +36,7 @@ export default function CustomersIndex({ customers, search, archived }: { custom
             resource="Customers"
             indexUrl={route('customers.index')}
             createUrl={route('customers.create')}
+            viewUrl={(id) => route('customers.show', id)}
             editUrl={(id) => route('customers.edit', id)}
             deleteUrl={(id) => route('customers.destroy', id)}
             restoreUrl={(id) => route('customers.restore', id)}

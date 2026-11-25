@@ -35,6 +35,13 @@ class ParcelController extends Controller
         ]);
     }
 
+    public function show(int $parcel): Response
+    {
+        return Inertia::render('parcels/show', [
+            'parcel' => $this->parcelService->find($parcel),
+        ]);
+    }
+
     public function edit(int $parcel): Response
     {
         return Inertia::render('parcels/edit', [

@@ -135,6 +135,11 @@ class CourierDispatchTest extends TestCase
 
         $this->get(route('dispatch-requests.index'))->assertOk();
         $this->get(route('dispatch-requests.create'))->assertOk();
+        $this->get(route('dispatch-requests.show', $dispatchRequest))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('dispatch-requests/show')
+                ->where('dispatchRequest.id', $dispatchRequest->id));
         $this->get(route('dispatch-requests.edit', $dispatchRequest))->assertOk();
     }
 

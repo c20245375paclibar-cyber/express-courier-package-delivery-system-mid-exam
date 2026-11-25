@@ -48,9 +48,15 @@ class CourierPaymentController extends Controller
         return to_route('courier-payments.index')->with('success', 'Payment created successfully.');
     }
 
-    public function show(int $courierPayment): JsonResponse
+    public function show(Request $request, int $courierPayment): Response|JsonResponse
     {
-        return response()->json($this->paymentService->find($courierPayment));
+        $payment = $this->paymentService->find($courierPayment);
+
+        if ($request->expectsJson()) {
+            return response()->json($payment);
+        }
+
+        return Inertia::render('courier-payments/show', ['payment' => $payment]);
     }
 
     public function edit(int $courierPayment): Response

@@ -148,6 +148,9 @@ export default function ShipmentStatusLogsIndex({
                                                 ) : (
                                                     <>
                                                         <Button variant="outline" size="sm" asChild>
+                                                            <Link href={route('shipment-status-logs.show', log.id)}>View</Link>
+                                                        </Button>
+                                                        <Button variant="outline" size="sm" asChild>
                                                             <Link href={route('shipment-status-logs.edit', log.id)}>Edit</Link>
                                                         </Button>
                                                         <Button

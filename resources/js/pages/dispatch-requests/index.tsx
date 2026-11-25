@@ -56,6 +56,7 @@ export default function DispatchRequestsIndex({
             resource="Dispatch requests"
             indexUrl={route('dispatch-requests.index')}
             createUrl={route('dispatch-requests.create')}
+            viewUrl={(id) => route('dispatch-requests.show', id)}
             editUrl={(id) => route('dispatch-requests.edit', id)}
             deleteUrl={(id) => route('dispatch-requests.destroy', id)}
             restoreUrl={(id) => route('dispatch-requests.restore', id)}

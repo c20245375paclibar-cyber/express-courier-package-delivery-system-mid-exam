@@ -35,6 +35,7 @@ export default function TransitHubsIndex({ hubs, search, archived }: { hubs: Pag
             resource="Transit hubs"
             indexUrl={route('transit-hubs.index')}
             createUrl={route('transit-hubs.create')}
+            viewUrl={(id) => route('transit-hubs.show', id)}
             editUrl={(id) => route('transit-hubs.edit', id)}
             deleteUrl={(id) => route('transit-hubs.destroy', id)}
             restoreUrl={(id) => route('transit-hubs.restore', id)}

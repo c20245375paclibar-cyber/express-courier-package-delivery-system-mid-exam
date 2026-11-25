@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatPeso } from '@/lib/utils';
 import { Head, Link, router } from '@inertiajs/react';
 import { Archive, ArchiveRestore, PackagePlus, Plus, Search, Truck } from 'lucide-react';
 import { FormEvent, useState } from 'react';
@@ -148,7 +149,7 @@ export default function ParcelsIndex({
                                         <TableCell>{parcel.current_hub?.name ?? '—'}</TableCell>
                                         <TableCell className="capitalize">{parcel.delivery_type}</TableCell>
                                         <TableCell className="text-right">{Number(parcel.parcel_weight_kg).toFixed(3)} kg</TableCell>
-                                        <TableCell className="text-right">${Number(parcel.shipping_cost).toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">{formatPeso(parcel.shipping_cost)}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-2">
                                                 {archived ? (
@@ -161,6 +162,9 @@ export default function ParcelsIndex({
                                                     </Button>
                                                 ) : (
                                                     <>
+                                                        <Button variant="outline" size="sm" asChild>
+                                                            <Link href={route('parcels.show', parcel.id)}>View</Link>
+                                                        </Button>
                                                         <Button variant="outline" size="sm" asChild>
                                                             <Link href={route('parcels.edit', parcel.id)}>Edit</Link>
                                                         </Button>
@@ -200,7 +204,7 @@ export default function ParcelsIndex({
                         <TableFooter>
                             <TableRow>
                                 <TableCell colSpan={7}>Shipping total on this page</TableCell>
-                                <TableCell className="text-right">${pageTotal.toFixed(2)}</TableCell>
+                                <TableCell className="text-right">{formatPeso(pageTotal)}</TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>

@@ -326,7 +326,7 @@ export default function CreateParcel({
                     </section>
 
                     <p className="text-muted-foreground text-sm">
-                        Shipping is calculated automatically: weight × $5/kg × delivery speed. A pending payment and the first status log are created
+                        Shipping is calculated automatically: weight × ₱5/kg × delivery speed. A pending payment and the first status log are created
                         with the parcel.
                     </p>
                     <div className="flex justify-end gap-3">

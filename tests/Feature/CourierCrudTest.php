@@ -180,6 +180,25 @@ class CourierCrudTest extends TestCase
         $this->assertNotSoftDeleted('parcels', ['id' => $parcel->id]);
     }
 
+    public function test_parcel_details_show_route_renders_parcel_and_tracking_history(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $parcel = $this->makeParcel();
+        $parcel->statusLogs()->create([
+            'sequence' => 1,
+            'status' => 'received',
+            'occurred_at' => now(),
+        ]);
+
+        $this->get(route('parcels.show', $parcel))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('parcels/show')
+                ->where('parcel.tracking_number', $parcel->tracking_number)
+                ->where('parcel.sender.name', 'Sender')
+                ->where('parcel.status_logs.0.status', 'received'));
+    }
+
     public function test_status_log_archive_and_restore_keep_its_sequence(): void
     {
         $this->actingAs(User::factory()->create());
@@ -255,25 +274,35 @@ class CourierCrudTest extends TestCase
         foreach ([
             'parcels.index',
             'parcels.create',
+            'parcels.show',
             'parcels.edit',
             'shipment-status-logs.index',
             'shipment-status-logs.create',
+            'shipment-status-logs.show',
             'shipment-status-logs.edit',
             'customers.index',
             'customers.create',
+            'customers.show',
             'customers.edit',
             'transit-hubs.index',
             'transit-hubs.create',
+            'transit-hubs.show',
             'transit-hubs.edit',
             'courier-payments.index',
             'courier-payments.create',
+            'courier-payments.show',
             'courier-payments.edit',
         ] as $routeName) {
             $parameters = match ($routeName) {
                 'parcels.edit' => [$parcel],
+                'parcels.show' => [$parcel],
+                'shipment-status-logs.show' => [$log],
                 'shipment-status-logs.edit' => [$log],
+                'customers.show' => [$customer],
                 'customers.edit' => [$customer],
+                'transit-hubs.show' => [$hub],
                 'transit-hubs.edit' => [$hub],
+                'courier-payments.show' => [$payment],
                 'courier-payments.edit' => [$payment],
                 default => [],
             };

@@ -48,9 +48,15 @@ class CustomerController extends Controller
         return to_route('customers.index')->with('success', 'Customer created successfully.');
     }
 
-    public function show(int $customer): JsonResponse
+    public function show(Request $request, int $customer): Response|JsonResponse
     {
-        return response()->json($this->customerService->find($customer));
+        $record = $this->customerService->find($customer);
+
+        if ($request->expectsJson()) {
+            return response()->json($record);
+        }
+
+        return Inertia::render('customers/show', ['customer' => $record]);
     }
 
     public function edit(int $customer): Response

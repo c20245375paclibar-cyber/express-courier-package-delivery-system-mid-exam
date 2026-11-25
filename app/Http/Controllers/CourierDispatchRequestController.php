@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreCourierDispatchRequest;
 use App\Http\Requests\UpdateCourierDispatchRequest;
 use App\Services\CourierDispatchService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -36,6 +37,17 @@ class CourierDispatchRequestController extends Controller
         $this->dispatchService->create($request->validated());
 
         return to_route('dispatch-requests.index')->with('success', 'Dispatch request queued successfully.');
+    }
+
+    public function show(Request $request, int $dispatchRequest): Response|JsonResponse
+    {
+        $record = $this->dispatchService->find($dispatchRequest);
+
+        if ($request->expectsJson()) {
+            return response()->json($record);
+        }
+
+        return Inertia::render('dispatch-requests/show', ['dispatchRequest' => $record]);
     }
 
     public function edit(int $dispatchRequest): Response

@@ -25,6 +25,7 @@ export default function CourierResourceIndex({
     resource,
     indexUrl,
     createUrl,
+    viewUrl,
     editUrl,
     deleteUrl,
     restoreUrl,
@@ -39,6 +40,7 @@ export default function CourierResourceIndex({
     resource: string;
     indexUrl: string;
     createUrl: string;
+    viewUrl?: (id: number) => string;
     editUrl: (id: number) => string;
     deleteUrl: (id: number) => string;
     restoreUrl?: (id: number) => string;
@@ -145,6 +147,11 @@ export default function CourierResourceIndex({
                                                     </Button>
                                                 ) : (
                                                     <>
+                                                        {viewUrl && (
+                                                            <Button variant="outline" size="sm" asChild>
+                                                                <Link href={viewUrl(row.id)}>View</Link>
+                                                            </Button>
+                                                        )}
                                                         <Button variant="outline" size="sm" asChild>
                                                             <Link href={editUrl(row.id)}>Edit</Link>
                                                         </Button>
