@@ -64,6 +64,13 @@ class ParcelController extends Controller
         return to_route('parcels.index')->with('success', 'Parcel updated successfully.');
     }
 
+    public function destroyPhoto(int $parcel, int $photo): RedirectResponse
+    {
+        $this->parcelService->deletePhoto($this->parcelService->find($parcel), $photo);
+
+        return back()->with('success', 'Parcel photo deleted successfully.');
+    }
+
     public function destroy(int $parcel): RedirectResponse
     {
         $this->parcelService->archive($this->parcelService->find($parcel));

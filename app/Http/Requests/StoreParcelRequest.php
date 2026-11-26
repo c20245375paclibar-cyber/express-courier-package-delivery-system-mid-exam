@@ -52,6 +52,14 @@ class StoreParcelRequest extends FormRequest
             }],
             'initial_status' => ['required', Rule::in(ParcelService::SHIPMENT_STATUSES)],
             'status_occurred_at' => ['nullable', 'date', 'after_or_equal:today'],
+            'photos' => ['nullable', 'array', 'max:5'],
+            'photos.*' => [
+                'required',
+                'mimetypes:image/jpeg,image/png,image/webp,image/avif',
+                'extensions:jpg,jpeg,png,webp,avif',
+                'max:2048',
+                'dimensions:max_width=4096,max_height=4096',
+            ],
         ];
     }
 
@@ -68,6 +76,7 @@ class StoreParcelRequest extends FormRequest
             'current_hub_name',
             'initial_status',
             'status_occurred_at',
+            'photos',
         ];
 
         $validator->after(function (Validator $validator) use ($allowed): void {
@@ -96,6 +105,8 @@ class StoreParcelRequest extends FormRequest
             'delivery_type.in' => 'Choose standard, express, or overnight delivery.',
             'initial_status.in' => 'Choose a valid initial shipment status.',
             'status_occurred_at.after_or_equal' => 'The status date and time cannot be before today.',
+            'photos.max' => 'You can upload up to 5 photos for each parcel.',
+            'photos.*.max' => 'Each photo must be 2 MB or smaller.',
         ];
     }
 }

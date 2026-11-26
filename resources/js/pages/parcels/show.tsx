@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { formatPeso } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 interface StatusLog {
     id: number;
@@ -22,6 +22,11 @@ interface Payment {
     paid_at: string | null;
 }
 
+interface ParcelPhoto {
+    id: number;
+    url: string;
+}
+
 interface Parcel {
     id: number;
     tracking_number: string;
@@ -33,6 +38,7 @@ interface Parcel {
     current_hub: { name: string } | null;
     status_logs: StatusLog[];
     payments: Payment[];
+    photos: ParcelPhoto[];
 }
 
 export default function ShowParcel({ parcel }: { parcel: Parcel }) {
@@ -40,6 +46,12 @@ export default function ShowParcel({ parcel }: { parcel: Parcel }) {
         { title: 'Parcels', href: route('parcels.index') },
         { title: parcel.tracking_number, href: route('parcels.show', parcel.id) },
     ];
+
+    const deletePhoto = (photo: ParcelPhoto) => {
+        if (window.confirm('Delete this parcel photo? This cannot be undone.')) {
+            router.delete(route('parcels.photos.destroy', [parcel.id, photo.id]));
+        }
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -90,6 +102,35 @@ export default function ShowParcel({ parcel }: { parcel: Parcel }) {
                         </CardContent>
                     </Card>
                 </div>
+
+                {parcel.photos.length > 0 && (
+                    <Card>
+                        <CardHeader><CardTitle className="text-base">Parcel photos</CardTitle></CardHeader>
+                        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {parcel.photos.map((photo) => (
+                                <figure key={photo.id} className="group relative overflow-hidden rounded-lg border">
+                                    <img
+                                        src={photo.url}
+                                        alt={`Photo of parcel ${parcel.tracking_number}`}
+                                        className="aspect-[4/3] w-full object-cover"
+                                        loading="lazy"
+                                    />
+                                    <figcaption className="sr-only">Parcel photo</figcaption>
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="icon"
+                                        className="absolute right-2 top-2 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                                        aria-label="Delete parcel photo"
+                                        onClick={() => deletePhoto(photo)}
+                                    >
+                                        <Trash2 />
+                                    </Button>
+                                </figure>
+                            ))}
+                        </CardContent>
+                    </Card>
+                )}
 
                 <Card>
                     <CardHeader><CardTitle className="text-base">Tracking history</CardTitle></CardHeader>

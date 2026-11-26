@@ -58,4 +58,9 @@ class Parcel extends Model
     {
         return $this->hasMany(CourierDispatchRequest::class);
     }
+
+    public function photos(): HasMany
+    {
+        return $this->hasMany(ParcelPhoto::class);
+    }
 }

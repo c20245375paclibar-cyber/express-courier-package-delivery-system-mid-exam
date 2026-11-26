@@ -8,6 +8,7 @@ interface Parcel {
     sender: { name: string; address: string };
     recipient: { name: string; address: string };
     current_hub: { name: string } | null;
+    photos: { id: number; url: string }[];
 }
 
 const fields: CrudField[] = [
@@ -17,18 +18,40 @@ const fields: CrudField[] = [
     { name: 'recipient_name', label: 'Recipient name', required: true },
     { name: 'recipient_address', label: 'Recipient address', required: true },
     { name: 'parcel_weight_kg', label: 'Weight (kg)', type: 'number', step: '0.001', required: true },
-    { name: 'delivery_type', label: 'Delivery speed', type: 'select', required: true, options: [
-        { value: 'standard', label: 'Standard' },
-        { value: 'express', label: 'Express' },
-        { value: 'overnight', label: 'Overnight' },
-    ] },
+    {
+        name: 'delivery_type',
+        label: 'Delivery speed',
+        type: 'select',
+        required: true,
+        options: [
+            { value: 'standard', label: 'Standard' },
+            { value: 'express', label: 'Express' },
+            { value: 'overnight', label: 'Overnight' },
+        ],
+    },
     { name: 'current_hub_name', label: 'Current transit hub' },
 ];
 
 export default function EditParcel({ parcel, deliveryTypes }: { parcel: Parcel; deliveryTypes: string[] }) {
-    const parcelFields = fields.map((field) => field.name === 'delivery_type'
-        ? { ...field, options: deliveryTypes.map((type) => ({ value: type, label: type.replaceAll('_', ' ') })) }
-        : field);
+    const parcelFields = [
+        ...fields.map((field) =>
+            field.name === 'delivery_type'
+                ? { ...field, options: deliveryTypes.map((type) => ({ value: type, label: type.replaceAll('_', ' ') })) }
+                : field,
+        ),
+        ...(parcel.photos.length < 5
+            ? [
+                  {
+                      name: 'photos',
+                      label: 'Add parcel photos',
+                      type: 'file' as const,
+                      accept: 'image/jpeg,image/png,image/webp,image/avif',
+                      multiple: true,
+                      maxFiles: 5 - parcel.photos.length,
+                  },
+              ]
+            : []),
+    ];
 
     return (
         <CourierCrudForm

@@ -6,8 +6,12 @@ use App\Models\Parcel;
 use App\Services\ShipmentStatus;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 enum DeliveryType: string
 {
@@ -66,6 +70,7 @@ class ParcelService
     public function __construct(
         private readonly CustomerService $customerService,
         private readonly TransitHubService $transitHubService,
+        private readonly ImageUploadService $imageUploads,
     ) {}
 
     public function sanitizeInput(array $data): array
@@ -131,6 +136,7 @@ class ParcelService
                 'recipient:id,name',
                 'currentHub:id,name',
                 'statusLogs:id,parcel_id,status',
+                'photos:id,parcel_id,path',
             ])
             ->latest();
 
@@ -167,6 +173,7 @@ class ParcelService
                 'statusLogs:id,parcel_id,transit_hub_id,sequence,status,occurred_at',
                 'statusLogs.transitHub:id,name',
                 'payments:id,parcel_id,amount,payment_status,payment_method,paid_at',
+                'photos:id,parcel_id,path',
             ])
             ->findOrFail($id);
     }
@@ -188,61 +195,93 @@ class ParcelService
     {
         $data = $this->sanitizeInput($data);
         $this->assertShipmentStatus($data['initial_status']);
+        $uploads = $data['photos'] ?? [];
+        unset($data['photos']);
+        $photoPaths = $this->storeUploadedPhotos($uploads);
 
-        return DB::transaction(function () use ($data) {
-            $sender = $this->customerService->findOrCreate($data['sender_name'], $data['sender_address']);
-            $recipient = $this->customerService->findOrCreate($data['recipient_name'], $data['recipient_address']);
-            $hub = $this->transitHubService->findOrCreate($data['current_hub_name'] ?? null);
-            $weight = round((float) $data['parcel_weight_kg'], 3);
-            $cost = $this->calculateShippingCost($weight, $data['delivery_type']);
-            $trackingNumber = $data['tracking_number'] ?: $this->generateTrackingNumber();
+        try {
+            return DB::transaction(function () use ($data, $photoPaths) {
+                $sender = $this->customerService->findOrCreate($data['sender_name'], $data['sender_address']);
+                $recipient = $this->customerService->findOrCreate($data['recipient_name'], $data['recipient_address']);
+                $hub = $this->transitHubService->findOrCreate($data['current_hub_name'] ?? null);
+                $weight = round((float) $data['parcel_weight_kg'], 3);
+                $cost = $this->calculateShippingCost($weight, $data['delivery_type']);
+                $trackingNumber = $data['tracking_number'] ?: $this->generateTrackingNumber();
 
-            $parcel = Parcel::query()->create([
-                'tracking_number' => $trackingNumber,
-                'sender_customer_id' => $sender->id,
-                'recipient_customer_id' => $recipient->id,
-                'current_hub_id' => $hub?->id,
-                'parcel_weight_kg' => $weight,
-                'delivery_type' => $data['delivery_type'],
-                'shipping_cost' => $cost,
-            ]);
+                $parcel = Parcel::query()->create([
+                    'tracking_number' => $trackingNumber,
+                    'sender_customer_id' => $sender->id,
+                    'recipient_customer_id' => $recipient->id,
+                    'current_hub_id' => $hub?->id,
+                    'parcel_weight_kg' => $weight,
+                    'delivery_type' => $data['delivery_type'],
+                    'shipping_cost' => $cost,
+                ]);
 
-            $parcel->statusLogs()->create([
-                'transit_hub_id' => $hub?->id,
-                'sequence' => 1,
-                'status' => $data['initial_status'],
-                'occurred_at' => $this->parseDate($data['status_occurred_at'] ?? null),
-            ]);
-            $parcel->payments()->create(['amount' => $cost, 'payment_status' => 'pending']);
+                $parcel->statusLogs()->create([
+                    'transit_hub_id' => $hub?->id,
+                    'sequence' => 1,
+                    'status' => $data['initial_status'],
+                    'occurred_at' => $this->parseDate($data['status_occurred_at'] ?? null),
+                ]);
+                $parcel->payments()->create(['amount' => $cost, 'payment_status' => 'pending']);
+                $this->attachPhotos($parcel, $photoPaths);
 
-            return $parcel;
-        });
+                return $parcel;
+            });
+        } catch (Throwable $exception) {
+            $this->deleteStoredPhotos($photoPaths);
+            throw $exception;
+        }
     }
 
     public function update(Parcel $parcel, array $data): Parcel
     {
         $data = $this->sanitizeInput($data);
+        $uploads = $data['photos'] ?? [];
+        unset($data['photos']);
 
-        return DB::transaction(function () use ($parcel, $data) {
-            $sender = $this->customerService->findOrCreate($data['sender_name'], $data['sender_address']);
-            $recipient = $this->customerService->findOrCreate($data['recipient_name'], $data['recipient_address']);
-            $hub = $this->transitHubService->findOrCreate($data['current_hub_name'] ?? null);
-            $weight = round((float) $data['parcel_weight_kg'], 3);
-            $cost = $this->calculateShippingCost($weight, $data['delivery_type']);
+        if ($parcel->photos()->count() + count($uploads) > 5) {
+            throw ValidationException::withMessages(['photos' => 'Each parcel can have up to 5 photos.']);
+        }
 
-            $parcel->update([
-                'tracking_number' => $data['tracking_number'],
-                'sender_customer_id' => $sender->id,
-                'recipient_customer_id' => $recipient->id,
-                'current_hub_id' => $hub?->id,
-                'parcel_weight_kg' => $weight,
-                'delivery_type' => $data['delivery_type'],
-                'shipping_cost' => $cost,
-            ]);
-            $parcel->payments()->where('payment_status', 'pending')->update(['amount' => $cost]);
+        $photoPaths = $this->storeUploadedPhotos($uploads);
 
-            return $parcel->refresh();
-        });
+        try {
+            return DB::transaction(function () use ($parcel, $data, $photoPaths) {
+                $sender = $this->customerService->findOrCreate($data['sender_name'], $data['sender_address']);
+                $recipient = $this->customerService->findOrCreate($data['recipient_name'], $data['recipient_address']);
+                $hub = $this->transitHubService->findOrCreate($data['current_hub_name'] ?? null);
+                $weight = round((float) $data['parcel_weight_kg'], 3);
+                $cost = $this->calculateShippingCost($weight, $data['delivery_type']);
+
+                $parcel->update([
+                    'tracking_number' => $data['tracking_number'],
+                    'sender_customer_id' => $sender->id,
+                    'recipient_customer_id' => $recipient->id,
+                    'current_hub_id' => $hub?->id,
+                    'parcel_weight_kg' => $weight,
+                    'delivery_type' => $data['delivery_type'],
+                    'shipping_cost' => $cost,
+                ]);
+                $parcel->payments()->where('payment_status', 'pending')->update(['amount' => $cost]);
+                $this->attachPhotos($parcel, $photoPaths);
+
+                return $parcel->refresh();
+            });
+        } catch (Throwable $exception) {
+            $this->deleteStoredPhotos($photoPaths);
+            throw $exception;
+        }
+    }
+
+    public function deletePhoto(Parcel $parcel, int $photoId): void
+    {
+        $photo = $parcel->photos()->findOrFail($photoId);
+        $path = $photo->path;
+        $photo->delete();
+
+        $this->deleteStoredPhotos([$path]);
     }
 
     public function archive(Parcel $parcel): void
@@ -274,6 +313,40 @@ class ParcelService
     private function parseDate(?string $date): Carbon
     {
         return $date ? Carbon::parse($date) : now();
+    }
+
+    private function storeUploadedPhotos(array $uploads): array
+    {
+        $paths = [];
+
+        try {
+            foreach ($uploads as $index => $upload) {
+                if (! $upload instanceof UploadedFile) {
+                    throw ValidationException::withMessages(['photos' => 'Every parcel photo must be a valid uploaded image.']);
+                }
+
+                $paths[] = $this->imageUploads->store($upload, 'parcels', 1920, false, "photos.{$index}");
+            }
+        } catch (Throwable $exception) {
+            $this->deleteStoredPhotos($paths);
+            throw $exception;
+        }
+
+        return $paths;
+    }
+
+    private function attachPhotos(Parcel $parcel, array $paths): void
+    {
+        foreach ($paths as $path) {
+            $parcel->photos()->create(['path' => $path]);
+        }
+    }
+
+    private function deleteStoredPhotos(array $paths): void
+    {
+        if ($paths !== [] && ! Storage::disk('public')->delete($paths)) {
+            Log::warning('One or more parcel image files could not be deleted during cleanup.', ['paths' => $paths]);
+        }
     }
 
     private function cleanText(mixed $value): string

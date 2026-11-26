@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Models\CourierPayment;
 use App\Models\Customer;
 use App\Models\Parcel;
-use App\Models\User;
 use App\Models\TransitHub;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CourierCrudTest extends TestCase
@@ -197,6 +199,125 @@ class CourierCrudTest extends TestCase
                 ->where('parcel.tracking_number', $parcel->tracking_number)
                 ->where('parcel.sender.name', 'Sender')
                 ->where('parcel.status_logs.0.status', 'received'));
+    }
+
+    public function test_parcel_listing_includes_photo_preview_urls(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $parcel = $this->makeParcel();
+        $path = 'parcels/list-preview.webp';
+        Storage::disk('public')->put($path, 'image');
+        $parcel->photos()->create(['path' => $path]);
+
+        $this->get(route('parcels.index'))
+            ->assertInertia(fn ($page) => $page
+                ->where('parcels.data.0.tracking_number', $parcel->tracking_number)
+                ->where('parcels.data.0.photos.0.url', Storage::disk('public')->url($path)));
+    }
+
+    public function test_parcel_photos_are_converted_to_webp_and_can_be_deleted(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+
+        $this->post(route('parcels.store'), [
+            'tracking_number' => 'CXP-PHOTO-001',
+            'sender_name' => 'Photo Sender',
+            'sender_address' => '1 Example Street',
+            'recipient_name' => 'Photo Recipient',
+            'recipient_address' => '2 Example Street',
+            'parcel_weight_kg' => 1,
+            'delivery_type' => 'standard',
+            'initial_status' => 'received',
+            'photos' => [UploadedFile::fake()->image('parcel.jpg', 20, 20)],
+        ])->assertRedirect(route('parcels.index'));
+
+        $parcel = Parcel::query()->where('tracking_number', 'CXP-PHOTO-001')->firstOrFail();
+        $photo = $parcel->photos()->firstOrFail();
+        $this->assertStringEndsWith('.webp', $photo->path);
+        $contents = Storage::disk('public')->get($photo->path);
+        $this->assertSame('RIFF', substr($contents, 0, 4));
+        $this->assertSame('WEBP', substr($contents, 8, 4));
+
+        $this->get(route('parcels.show', $parcel))
+            ->assertInertia(fn ($page) => $page->where('parcel.photos.0.url', Storage::disk('public')->url($photo->path)));
+
+        $this->from(route('parcels.show', $parcel))
+            ->delete(route('parcels.photos.destroy', [$parcel, $photo]))
+            ->assertRedirect(route('parcels.show', $parcel));
+        $this->assertDatabaseMissing('parcel_photos', ['id' => $photo->id]);
+        Storage::disk('public')->assertMissing($photo->path);
+    }
+
+    public function test_parcel_upload_rejects_more_than_five_photos(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+
+        $photos = [];
+        for ($index = 1; $index <= 6; $index++) {
+            $photos[] = UploadedFile::fake()->image("parcel-{$index}.jpg", 10, 10);
+        }
+
+        $this->from(route('parcels.create'))
+            ->post(route('parcels.store'), [
+                'tracking_number' => 'CXP-PHOTO-002',
+                'sender_name' => 'Photo Sender',
+                'sender_address' => '1 Example Street',
+                'recipient_name' => 'Photo Recipient',
+                'recipient_address' => '2 Example Street',
+                'parcel_weight_kg' => 1,
+                'delivery_type' => 'standard',
+                'initial_status' => 'received',
+                'photos' => $photos,
+            ])
+            ->assertSessionHasErrors('photos');
+
+        $this->assertDatabaseMissing('parcels', ['tracking_number' => 'CXP-PHOTO-002']);
+        $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    public function test_parcel_photos_can_be_uploaded_during_an_edit_request(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $parcel = $this->makeParcel();
+
+        $this->post(route('parcels.update', $parcel), [
+            '_method' => 'put',
+            'tracking_number' => $parcel->tracking_number,
+            'sender_name' => 'Sender',
+            'sender_address' => '1 Example Street',
+            'recipient_name' => 'Recipient',
+            'recipient_address' => '2 Example Street',
+            'parcel_weight_kg' => 1,
+            'delivery_type' => 'standard',
+            'current_hub_name' => '',
+            'photos' => [UploadedFile::fake()->image('edit-parcel.jpg', 10, 10)],
+        ])->assertRedirect(route('parcels.index'));
+
+        $this->assertCount(1, $parcel->photos()->get());
+        $this->assertSame('webp', pathinfo($parcel->photos()->firstOrFail()->path, PATHINFO_EXTENSION));
+    }
+
+    public function test_profile_photo_upload_is_saved_as_webp(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $this->post(route('profile.avatar'), [
+            'avatar' => UploadedFile::fake()->image('avatar.jpg', 20, 20),
+        ])->assertRedirect();
+
+        $path = $user->fresh()->avatar_path;
+        $this->assertIsString($path);
+        $this->assertStringEndsWith('.webp', $path);
+        Storage::disk('public')->assertExists($path);
+        $contents = Storage::disk('public')->get($path);
+        $this->assertSame('RIFF', substr($contents, 0, 4));
+        $this->assertSame('WEBP', substr($contents, 8, 4));
     }
 
     public function test_status_log_archive_and_restore_keep_its_sequence(): void

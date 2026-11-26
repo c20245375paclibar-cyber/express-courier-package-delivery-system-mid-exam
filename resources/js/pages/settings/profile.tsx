@@ -6,9 +6,11 @@ import { FormEventHandler } from 'react';
 import DeleteUser from '@/components/delete-user';
 import HeadingSmall from '@/components/heading-small';
 import InputError from '@/components/input-error';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useInitials } from '@/hooks/use-initials';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 
@@ -21,16 +23,25 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: boolean; status?: string }) {
     const { auth } = usePage<SharedData>().props;
+    const getInitials = useInitials();
 
     const { data, setData, patch, errors, processing, recentlySuccessful } = useForm({
         name: auth.user.name,
         email: auth.user.email,
     });
+    const avatarForm = useForm<{ avatar: File | null }>({ avatar: null });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
         patch(route('profile.update'));
+    };
+
+    const uploadAvatar: FormEventHandler = (e) => {
+        e.preventDefault();
+        avatarForm.post(route('profile.avatar'), {
+            onSuccess: () => avatarForm.reset(),
+        });
     };
 
     return (
@@ -39,6 +50,33 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
 
             <SettingsLayout>
                 <div className="space-y-6">
+                    <section className="space-y-4">
+                        <HeadingSmall
+                            title="Profile photo"
+                            description="Upload a JPG, PNG, WebP or AVIF image up to 2 MB. It will be saved as WebP."
+                        />
+                        <form onSubmit={uploadAvatar} className="flex flex-wrap items-center gap-4">
+                            <Avatar className="size-16">
+                                <AvatarImage src={auth.user.avatar} alt={auth.user.name} />
+                                <AvatarFallback>{getInitials(auth.user.name)}</AvatarFallback>
+                            </Avatar>
+                            <div className="grid gap-2">
+                                <Label htmlFor="avatar">Choose profile photo</Label>
+                                <Input
+                                    id="avatar"
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/avif"
+                                    onChange={(event) => avatarForm.setData('avatar', event.target.files?.[0] ?? null)}
+                                    disabled={avatarForm.processing}
+                                />
+                                <InputError message={avatarForm.errors.avatar} />
+                                <Button type="submit" disabled={avatarForm.processing || !avatarForm.data.avatar}>
+                                    {avatarForm.processing ? 'Uploading...' : 'Save photo'}
+                                </Button>
+                            </div>
+                        </form>
+                    </section>
+
                     <HeadingSmall title="Profile information" description="Update your name and email address" />
 
                     <form onSubmit={submit} className="space-y-6">

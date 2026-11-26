@@ -17,6 +17,8 @@ interface Parcel {
     recipient: { name: string };
     current_hub: { name: string } | null;
     status_logs: Array<{ status: string }>;
+
+    photos: Array<{ id: number; url: string }>;
 }
 
 interface Paginator<T> {
@@ -123,6 +125,7 @@ export default function ParcelsIndex({
                         <TableCaption>Recent parcels and their latest tracking status.</TableCaption>
                         <TableHeader>
                             <TableRow>
+                                <TableHead>Photo</TableHead>
                                 <TableHead>Tracking number</TableHead>
                                 <TableHead>Sender → Recipient</TableHead>
                                 <TableHead>Status</TableHead>
@@ -137,6 +140,34 @@ export default function ParcelsIndex({
                             {parcels.data.length ? (
                                 parcels.data.map((parcel) => (
                                     <TableRow key={parcel.id}>
+                                        <TableCell>
+                                            {parcel.photos[0] ? (
+                                                <Link
+                                                    href={route('parcels.show', parcel.id)}
+                                                    aria-label={`View photos for ${parcel.tracking_number}`}
+                                                    className="relative block size-12 overflow-hidden rounded-md border"
+                                                >
+                                                    <img
+                                                        src={parcel.photos[0].url}
+                                                        alt={`Parcel ${parcel.tracking_number}`}
+                                                        className="size-full object-cover"
+                                                        loading="lazy"
+                                                    />
+                                                    {parcel.photos.length > 1 && (
+                                                        <span className="absolute inset-x-0 bottom-0 bg-black/70 text-center text-[10px] leading-4 text-white">
+                                                            +{parcel.photos.length - 1}
+                                                        </span>
+                                                    )}
+                                                </Link>
+                                            ) : (
+                                                <Link
+                                                    href={route('parcels.edit', parcel.id)}
+                                                    className="text-muted-foreground text-xs underline-offset-4 hover:underline"
+                                                >
+                                                    Add photo
+                                                </Link>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="font-medium">{parcel.tracking_number}</TableCell>
                                         <TableCell>
                                             {parcel.sender.name} <span className="text-muted-foreground">→</span> {parcel.recipient.name}
@@ -191,7 +222,7 @@ export default function ParcelsIndex({
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-40 text-center">
+                                    <TableCell colSpan={9} className="h-40 text-center">
                                         <PackagePlus className="text-muted-foreground mx-auto mb-2 size-8" />
                                         <p className="font-medium">No parcels yet</p>
                                         <p className="text-muted-foreground mt-1 text-sm">
@@ -203,7 +234,7 @@ export default function ParcelsIndex({
                         </TableBody>
                         <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={7}>Shipping total on this page</TableCell>
+                                <TableCell colSpan={8}>Shipping total on this page</TableCell>
                                 <TableCell className="text-right">{formatPeso(pageTotal)}</TableCell>
                             </TableRow>
                         </TableFooter>

@@ -8,7 +8,6 @@ import { ArrowLeft, LoaderCircle } from 'lucide-react';
 import { FormEventHandler, MouseEvent } from 'react';
 
 interface ParcelForm {
-    [key: string]: string;
     tracking_number: string;
     sender_name: string;
     sender_address: string;
@@ -21,6 +20,7 @@ interface ParcelForm {
     status_occurred_at: string;
     status_date: string;
     status_time: string;
+    photos: File[];
 }
 
 const breadcrumbs = [
@@ -70,6 +70,7 @@ export default function CreateParcel({
         status_occurred_at: '',
         status_date: '',
         status_time: '',
+        photos: [],
     });
 
     const submit: FormEventHandler = (event) => {
@@ -85,6 +86,7 @@ export default function CreateParcel({
             current_hub_name: formData.current_hub_name.trim(),
             initial_status: formData.initial_status,
             status_occurred_at: formData.status_date ? `${formData.status_date}T${formData.status_time || '00:00'}` : '',
+            photos: formData.photos,
         }));
         post(route('parcels.store'));
     };
@@ -197,6 +199,28 @@ export default function CreateParcel({
                                 />
                                 <InputError message={errors.recipient_address} />
                             </div>
+                        </div>
+                        <div className="grid gap-2 border-t pt-4">
+                            <Label htmlFor="photos">Parcel photos (optional)</Label>
+                            <Input
+                                id="photos"
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/avif"
+                                multiple
+                                onChange={(event) => setData('photos', Array.from(event.target.files ?? []))}
+                                disabled={processing}
+                            />
+                            <p className="text-muted-foreground text-xs">
+                                Choose up to 5 images. Each can be up to 2 MB. JPG, PNG, WebP and AVIF are converted to compressed WebP.
+                            </p>
+                            {data.photos.length > 0 && (
+                                <ul className="text-muted-foreground list-inside list-disc text-xs">
+                                    {data.photos.map((photo) => (
+                                        <li key={`${photo.name}-${photo.lastModified}`}>{photo.name}</li>
+                                    ))}
+                                </ul>
+                            )}
+                            <InputError message={errors.photos ?? errors['photos.0']} />
                         </div>
                     </section>
 

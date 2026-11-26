@@ -52,6 +52,14 @@ class UpdateParcelRequest extends FormRequest
                     $fail('Enter a valid transit hub name.');
                 }
             }],
+            'photos' => ['nullable', 'array', 'max:5'],
+            'photos.*' => [
+                'required',
+                'mimetypes:image/jpeg,image/png,image/webp,image/avif',
+                'extensions:jpg,jpeg,png,webp,avif',
+                'max:2048',
+                'dimensions:max_width=4096,max_height=4096',
+            ],
         ];
     }
 
@@ -66,6 +74,8 @@ class UpdateParcelRequest extends FormRequest
             'parcel_weight_kg',
             'delivery_type',
             'current_hub_name',
+            'photos',
+            '_method',
         ];
 
         $validator->after(function (Validator $validator) use ($allowed): void {
@@ -92,6 +102,8 @@ class UpdateParcelRequest extends FormRequest
             'tracking_number.unique' => 'This tracking number is already in use.',
             'parcel_weight_kg.gt' => 'Parcel weight must be greater than zero.',
             'delivery_type.in' => 'Choose standard, express, or overnight delivery.',
+            'photos.max' => 'You can upload up to 5 photos for each parcel.',
+            'photos.*.max' => 'Each photo must be 2 MB or smaller.',
         ];
     }
 }

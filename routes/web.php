@@ -17,6 +17,7 @@ Route::get('/', function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('parcels/{parcel}/restore', [ParcelController::class, 'restore'])->name('parcels.restore');
+    Route::delete('parcels/{parcel}/photos/{photo}', [ParcelController::class, 'destroyPhoto'])->name('parcels.photos.destroy');
     Route::post('shipment-status-logs/{shipmentStatusLog}/restore', [ShipmentStatusLogController::class, 'restore'])->name('shipment-status-logs.restore');
     Route::post('customers/{customer}/restore', [CustomerController::class, 'restore'])->name('customers.restore');
     Route::post('transit-hubs/{transitHub}/restore', [TransitHubController::class, 'restore'])->name('transit-hubs.restore');
